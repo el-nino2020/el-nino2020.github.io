@@ -22,41 +22,32 @@
 
 <script class="next-config" data-name="main" type="application/json">{"hostname":"el-nino2020.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.17.1","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12},"copycode":{"enable":true,"style":null},"bookmark":{"enable":false,"color":"#008000","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":false,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
 
-    <meta name="description" content="序言随着 Markdown 的普及，使用传统文本编辑器写作的效率显得低下，尤其表现在一些复杂语法，比如插入表格，或者插入图片。 Typora 作为业界知名的 Markdown 编辑器，除了著名的『即时渲染』，也拥有很多方便书写 Markdown 的功能，比如插入图片时的自动保存：往一个 Markdown 文件（文本文件）中粘贴一张图片，该图片便会自动保存到指定路径，并且自动在 Markdown 中">
+    <meta name="description" content="介绍Azure Pipelines 是 Azure DevOps（SaaS 平台）的一个组件，是一个自动化 CI&#x2F;CD 的“流水线”。类似的技术有GitHub Actions 和 Jenkins。 作为使用者，我们只需要在 YAML 中定义各个任务，触发 Pipeline，Azure Pipelines 就能帮我们自动执行这些任务。 那么，任务是怎么被执行的呢？是否存在并行任务上限？我们">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Markdown 插入图片时自动拷贝——以 Typora 和  VS Code 为例">
-<meta property="og:url" content="https://el-nino2020.github.io/2023/07/22/Markdown-%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E6%97%B6%E8%87%AA%E5%8A%A8%E6%8B%B7%E8%B4%9D%E2%80%94%E2%80%94%E4%BB%A5-Typora-%E5%92%8C-VS-Code-%E4%B8%BA%E4%BE%8B/index.html">
+<meta property="og:title" content="Azure Pipelines 架构解析">
+<meta property="og:url" content="https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-Architecture/index.html">
 <meta property="og:site_name" content="El nino 的博客">
-<meta property="og:description" content="序言随着 Markdown 的普及，使用传统文本编辑器写作的效率显得低下，尤其表现在一些复杂语法，比如插入表格，或者插入图片。 Typora 作为业界知名的 Markdown 编辑器，除了著名的『即时渲染』，也拥有很多方便书写 Markdown 的功能，比如插入图片时的自动保存：往一个 Markdown 文件（文本文件）中粘贴一张图片，该图片便会自动保存到指定路径，并且自动在 Markdown 中">
+<meta property="og:description" content="介绍Azure Pipelines 是 Azure DevOps（SaaS 平台）的一个组件，是一个自动化 CI&#x2F;CD 的“流水线”。类似的技术有GitHub Actions 和 Jenkins。 作为使用者，我们只需要在 YAML 中定义各个任务，触发 Pipeline，Azure Pipelines 就能帮我们自动执行这些任务。 那么，任务是怎么被执行的呢？是否存在并行任务上限？我们">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722141038783.png">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722141359394.png">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722142231405.png">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722142307844.png">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722142326387.png">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722142953270.png">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722143640371.png">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722143756389.png">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722143813041.png">
-<meta property="article:published_time" content="2023-07-22T05:28:59.000Z">
-<meta property="article:modified_time" content="2023-07-22T05:28:59.000Z">
+<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/key-pipeline-concepts-overview-ca80c85c.png">
+<meta property="article:published_time" content="2023-10-06T12:11:59.000Z">
+<meta property="article:modified_time" content="2023-10-06T12:11:59.000Z">
 <meta property="article:author" content="El nino">
-<meta property="article:tag" content="settings">
-<meta property="article:tag" content="VS Code">
-<meta property="article:tag" content="Typora">
-<meta property="article:tag" content="Markdown">
+<meta property="article:tag" content="Azure">
+<meta property="article:tag" content="Azure Pipelines">
+<meta property="article:tag" content="架构">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230722141038783.png">
+<meta name="twitter:image" content="https://el-nino2020.github.io/MarkDownImages/key-pipeline-concepts-overview-ca80c85c.png">
 
 
-<link rel="canonical" href="https://el-nino2020.github.io/2023/07/22/Markdown-%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E6%97%B6%E8%87%AA%E5%8A%A8%E6%8B%B7%E8%B4%9D%E2%80%94%E2%80%94%E4%BB%A5-Typora-%E5%92%8C-VS-Code-%E4%B8%BA%E4%BE%8B/">
+<link rel="canonical" href="https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-Architecture/">
 
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2023/07/22/Markdown-%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E6%97%B6%E8%87%AA%E5%8A%A8%E6%8B%B7%E8%B4%9D%E2%80%94%E2%80%94%E4%BB%A5-Typora-%E5%92%8C-VS-Code-%E4%B8%BA%E4%BE%8B/","path":"2023/07/22/Markdown-插入图片时自动拷贝——以-Typora-和-VS-Code-为例/","title":"Markdown 插入图片时自动拷贝——以 Typora 和  VS Code 为例"}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-Architecture/","path":"2023/10/06/Azure-Pipelines-Architecture/","title":"Azure Pipelines 架构解析"}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
-<title>Markdown 插入图片时自动拷贝——以 Typora 和  VS Code 为例 | El nino 的博客</title>
+<title>Azure Pipelines 架构解析 | El nino 的博客</title>
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-SBFGGZ14VS"></script>
   <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"G-SBFGGZ14VS","only_pageview":false}</script>
@@ -160,7 +151,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BA%8F%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">序言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%9C%80%E6%B1%82"><span class="nav-number">2.</span> <span class="nav-text">需求</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BC%A0%E7%BB%9F%E6%96%87%E6%9C%AC%E7%BC%96%E8%BE%91%E5%99%A8"><span class="nav-number">3.</span> <span class="nav-text">传统文本编辑器</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Typora"><span class="nav-number">4.</span> <span class="nav-text">Typora</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE"><span class="nav-number">4.1.</span> <span class="nav-text">设置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%93%8D%E4%BD%9C"><span class="nav-number">4.2.</span> <span class="nav-text">操作</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#VS-Code"><span class="nav-number">5.</span> <span class="nav-text">VS Code</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE-1"><span class="nav-number">5.1.</span> <span class="nav-text">设置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%93%8D%E4%BD%9C-1"><span class="nav-number">5.2.</span> <span class="nav-text">操作</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%AB%A0"><span class="nav-number">6.</span> <span class="nav-text">参考文章</span></a></li></ol></div>
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BB%8B%E7%BB%8D"><span class="nav-number">1.</span> <span class="nav-text">介绍</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Azure-Pipelines-%E6%9C%AF%E8%AF%AD"><span class="nav-number">2.</span> <span class="nav-text">Azure Pipelines 术语</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Azure-Pipelines-%E4%BB%BB%E5%8A%A1%E8%B0%83%E5%BA%A6"><span class="nav-number">3.</span> <span class="nav-text">Azure Pipelines 任务调度</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Parallel-Jobs"><span class="nav-number">4.</span> <span class="nav-text">Parallel Jobs</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E9%93%BE%E6%8E%A5"><span class="nav-number">5.</span> <span class="nav-text">参考链接</span></a></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -227,7 +218,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2023/07/22/Markdown-%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E6%97%B6%E8%87%AA%E5%8A%A8%E6%8B%B7%E8%B4%9D%E2%80%94%E2%80%94%E4%BB%A5-Typora-%E5%92%8C-VS-Code-%E4%B8%BA%E4%BE%8B/">
+    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-Architecture/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="https://avatars.githubusercontent.com/u/69737612?v=4">
@@ -240,12 +231,12 @@
     </span>
 
     <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="Markdown 插入图片时自动拷贝——以 Typora 和  VS Code 为例 | El nino 的博客">
+      <meta itemprop="name" content="Azure Pipelines 架构解析 | El nino 的博客">
       <meta itemprop="description" content="">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          Markdown 插入图片时自动拷贝——以 Typora 和  VS Code 为例
+          Azure Pipelines 架构解析
         </h1>
 
         <div class="post-meta-container">
@@ -256,7 +247,7 @@
       </span>
       <span class="post-meta-item-text">发表于</span>
 
-      <time title="创建时间：2023-07-22 13:28:59" itemprop="dateCreated datePublished" datetime="2023-07-22T13:28:59+08:00">2023-07-22</time>
+      <time title="创建时间：2023-10-06 20:11:59" itemprop="dateCreated datePublished" datetime="2023-10-06T20:11:59+08:00">2023-10-06</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -268,19 +259,7 @@
         </span>
           ，
         <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/softwares/" itemprop="url" rel="index"><span itemprop="name">softwares</span></a>
-        </span>
-          ，
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/softwares/VS-Code/" itemprop="url" rel="index"><span itemprop="name">VS Code</span></a>
-        </span>
-          ，
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/softwares/Typora/" itemprop="url" rel="index"><span itemprop="name">Typora</span></a>
-        </span>
-          ，
-        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/tech/Markdown/" itemprop="url" rel="index"><span itemprop="name">Markdown</span></a>
+          <a href="/categories/tech/Azure/" itemprop="url" rel="index"><span itemprop="name">Azure</span></a>
         </span>
     </span>
 
@@ -298,14 +277,14 @@
         <i class="far fa-file-word"></i>
       </span>
       <span class="post-meta-item-text">本文字数：</span>
-      <span>1k</span>
+      <span>934</span>
     </span>
     <span class="post-meta-item" title="阅读时长">
       <span class="post-meta-item-icon">
         <i class="far fa-clock"></i>
       </span>
       <span class="post-meta-item-text">阅读时长 &asymp;</span>
-      <span>4 分钟</span>
+      <span>3 分钟</span>
     </span>
 </div>
 
@@ -315,54 +294,51 @@
     
     
     
-    <div class="post-body" itemprop="articleBody"><h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>随着 Markdown 的普及，使用传统文本编辑器写作的效率显得低下，尤其表现在一些复杂语法，比如插入表格，或者插入图片。</p>
-<p>Typora 作为业界知名的 Markdown 编辑器，除了著名的『即时渲染』，也拥有很多方便书写 Markdown 的功能，比如插入图片时的自动保存：往一个 Markdown 文件（文本文件）中粘贴一张图片，该图片便会自动保存到指定路径，并且自动在 Markdown 中建立好引用。</p>
-<p>对于经常用 Markdown 记笔记的我来说，<strong>这一功能应该成为业界的标准</strong>。但是，另一款常用的编辑器 —— VS Code —— 对这一功能的支持并不好。当然，我们也不应该苛求这样一款免费、通用的编辑器能够面面俱到。</p>
-<h1 id="需求"><a href="#需求" class="headerlink" title="需求"></a>需求</h1><p>对于经常记笔记的用户，截图并插入 Markdown 是一个常见的需求。在这一操作的背后，有两个方面关乎着用户体验：1️⃣ 截图工具 2️⃣Markdown 编辑器。</p>
-<p>在截图工具一致的情况下，Markdown 编辑器是决定用户体验的关键因素。下面我将展开介绍 3 种编辑器是如何插入图片的。</p>
+    <div class="post-body" itemprop="articleBody"><h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h1><p>Azure Pipelines 是 Azure DevOps（SaaS 平台）的一个组件，是一个自动化 CI&#x2F;CD 的“流水线”。类似的技术有<a target="_blank" rel="noopener" href="https://github.com/features/actions">GitHub Actions</a> 和 <a target="_blank" rel="noopener" href="https://www.jenkins.io/">Jenkins</a>。</p>
+<p>作为使用者，我们只需要在 YAML 中定义各个任务，触发 Pipeline，Azure Pipelines 就能帮我们自动执行这些任务。</p>
+<p>那么，任务是怎么被执行的呢？是否存在并行任务上限？我们怎样设计更高效地定义 YAML，从而让一次 Pipeline 更快地跑完呢？—— 本文将从任务调度的角度，解析 Azure Pipelines 的架构。在探讨的过程中，上述问题自然能得到解答。</p>
 <span id="more"></span>
 
-
-<h1 id="传统文本编辑器"><a href="#传统文本编辑器" class="headerlink" title="传统文本编辑器"></a>传统文本编辑器</h1><p>这种编辑器通常只是支持 Markdown 语法高亮的“记事本”，比如 vim，sublime 等。</p>
-<p>当我们截图完毕后，需要先将图片存储到本地，再使用 Markdown 语法手动引用该图片的路径：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">![<span class="string">alt text</span>](<span class="link">image.jpg</span>)</span><br></pre></td></tr></table></figure>
-
-<p>出于方便，截图软件往往会将图片都存储到特定路径下。为了单独存放每个 Markdown 文件相关的图片，我们还需要手动地剪切图片的位置。很麻烦！</p>
-<h1 id="Typora"><a href="#Typora" class="headerlink" title="Typora"></a>Typora</h1><h2 id="设置"><a href="#设置" class="headerlink" title="设置"></a>设置</h2><p>Typora 为插入图片提供了多种功能，我最常用的是『复制图片到指定路径』。</p>
-<p>这里的『插入图片』，是指鼠标拖动图片到 Typora 中，或者从剪贴板（<code>win + v</code>）中粘贴</p>
-<img src="/MarkDownImages/image-20230722141038783.png" alt="image-20230722141038783" style="zoom:50%;" />
-
-<p>我选择保存到与当前 Markdown 文件同目录下的<code>MarkDownImages</code>文件夹下（没有会自动创建）。当然，更好的做法应该是选择『复制图片到 <code>./$&#123;filename&#125;.assets</code> 文件夹』，这样方便 Markdown 文件的迁移</p>
-<img src="/MarkDownImages/image-20230722141359394.png" alt="image-20230722141359394" style="zoom:50%;" />
-
-<p>『对网络位置的图片应用上述规则』：当我们复制了一个网络图片（的 url ） ，Typora 会自动下载图片到指定路径，并将 url 变为本地文件引用 —— 网络上的图片可能随时消失，本地存储更可靠。</p>
-<h2 id="操作"><a href="#操作" class="headerlink" title="操作"></a>操作</h2><p>截图后，在 Typora 中按下 <code>Ctrl + v</code>，则剪贴板中的图片会自动拷贝到<code>MarkDownImages</code>文件夹下，并且<strong>文件名基于时间戳</strong>，不容易重复</p>
-<hr>
-<img src="/MarkDownImages/image-20230722142231405.png" alt="image-20230722142231405" style="zoom:67%;" />
-
-<hr>
-<img src="/MarkDownImages/image-20230722142307844.png" alt="image-20230722142307844" style="zoom:67%;" />
-
-<hr>
-<img src="/MarkDownImages/image-20230722142326387.png" alt="image-20230722142326387" style="zoom:67%;" />
-
-<hr>
-<p>可以看出，这种插入图片的方式非常优雅、便捷</p>
-<h1 id="VS-Code"><a href="#VS-Code" class="headerlink" title="VS Code"></a>VS Code</h1><h2 id="设置-1"><a href="#设置-1" class="headerlink" title="设置"></a>设置</h2><p>VS Code 应该是在最近才加入类似 Typora 的功能，不过只提供了『复制图片到指定路径』的选项。</p>
-<p>我这里的配置是插入任意文件（<code>**/*</code>）时，将它复制到与当前 Markdown 文件同目录下的 <code>MarkDownImages</code> 文件夹下（没有会自动创建）。文件名叫做 <code>VSCodeCopied-$&#123;fileName&#125;</code>。<code>$&#123;fileName&#125;</code>是原始文件名</p>
-<p><img src="/MarkDownImages/image-20230722142953270.png" alt="image-20230722142953270"></p>
-<p>或者可以直接复制以下内容到 <code>settings.json</code> 中：</p>
-<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;markdown.copyFiles.destination&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">                <span class="attr">&quot;**/*&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./MarkDownImages/VSCodeCopied-$&#123;fileName&#125;&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
-
-<h2 id="操作-1"><a href="#操作-1" class="headerlink" title="操作"></a>操作</h2><p>与 Typora 类似，截图按下 <code>Ctrl + v</code> 即可</p>
-<p>为什么保存的图片名要叫做 <code>VSCodeCopied-$&#123;fileName&#125;</code>？因为将截图插入到 VS Code 中时，会被起名为<code>image.png</code></p>
-<p><img src="/MarkDownImages/image-20230722143640371.png" alt="image-20230722143640371"></p>
-<p>如果有重复，就在文件名后面添加数字以示区分：</p>
-<p><img src="/MarkDownImages/image-20230722143756389.png" alt="image-20230722143756389"></p>
-<p><img src="/MarkDownImages/image-20230722143813041.png" alt="image-20230722143813041"></p>
-<p>这显然不直观，并且在团队合作写文档时容易造成文件名冲突。期待 VS Code 后续的更新中能够解决这一点，并提供更多的插入图片时的选项。</p>
-<h1 id="参考文章"><a href="#参考文章" class="headerlink" title="参考文章"></a>参考文章</h1><p><a target="_blank" rel="noopener" href="https://support.typora.io/Images/#when-insert-images">Images in Typora: when-insert-images</a></p>
-<p><a target="_blank" rel="noopener" href="https://www.markdownguide.org/cheat-sheet/">Markdown Cheat Sheet</a></p>
+<h1 id="Azure-Pipelines-术语"><a href="#Azure-Pipelines-术语" class="headerlink" title="Azure Pipelines 术语"></a>Azure Pipelines 术语</h1><p><img src="/MarkDownImages/key-pipeline-concepts-overview-ca80c85c.png" alt="img"></p>
+<p><strong>对于 Azure Pipelines 的使用者</strong>，一个 YAML 文件唯一定义了一条 Pipeline 的运行逻辑：</p>
+<ul>
+<li>一条 Pipeline 可以包含多个 Stage</li>
+<li>一个 Stage 可以包含多个 Job</li>
+<li>一个 Job 可以包含多个 Step</li>
+<li>一个 Step 可以包含多个 task</li>
+</ul>
+<p><strong>对于 Azure Pipelines 本身</strong>，当一条 Pipeline 被触发，它需要调用计算资源，去执行 Pipeline 的逻辑。具体来说，会有一台机器（agent）负责执行一个 job。</p>
+<p>一个 job 只会在一台 agent 上跑，它不会被进一步地拆分。而一条 Pipeline 的所有 job 可能会分配给不同的 agent 去执行。</p>
+<p>这种分配是如何完成的呢？</p>
+<h1 id="Azure-Pipelines-任务调度"><a href="#Azure-Pipelines-任务调度" class="headerlink" title="Azure Pipelines 任务调度"></a>Azure Pipelines 任务调度</h1><p>Azure Pipelines 的任务调度是一种典型的分布式任务调度模型（类似的技术有<a target="_blank" rel="noopener" href="http://www.quartz-scheduler.org/">QUARTZ</a> 和 <a target="_blank" rel="noopener" href="https://github.com/xuxueli/xxl-job">xxl-job</a>）：</p>
+<ul>
+<li>Azure Pipelines 上有一个<strong>『任务队列』</strong>，里面存放着所有待运行的 <u>job</u>（既指任务调度模型中的 Job&#x2F;Task，又指 Pipeline 中的 job 术语）</li>
+<li>Agent 是 Worker，它会定时地查看<strong>『任务队列』</strong>中是否有 job 要运行。如果有，则某一台 Agent 会竞争获得执行该 Job 的权利，同时获得访问相应资源的权限。此时，它就可以开始执行这个 job 了。</li>
+</ul>
+<p>因此，一条 Pipeline 是这样执行的：</p>
+<ol>
+<li>触发 Pipeline。Azure Pipelines 解析 YAML，拆分为多个 Job，存入『任务队列』中。</li>
+<li>假如此时有空闲的 Agent，说明『任务队列』此时为空。那么，它监听到了任务队列中加入新 job 后，开始与其他 Agent（假如有的话）竞争执行该 job。<ul>
+<li>竞争成功，开始执行；</li>
+<li>竞争失败，继续监听；</li>
+</ul>
+</li>
+<li>假如此时没有空闲的 Agent，则说明『任务队列』之前已经有 job 了，或者没有 Agent 跑完自己之前领取的 job。那么这些新产生的 job 就会有序地等待 Agent 来执行。（job 按照 Pipeline 触发的时间来排队等待，因此是公平的）</li>
+</ol>
+<h1 id="Parallel-Jobs"><a href="#Parallel-Jobs" class="headerlink" title="Parallel Jobs"></a>Parallel Jobs</h1><p>任务调度框架意味着<strong>并行（parallel）</strong>。这也意味着，我们在定义 YAML 时，<strong>应该将没有依赖的 Steps 或 Tasks 提升为 Jobs，使得它们能够并行执行，缩短运行时间</strong>。</p>
+<blockquote>
+<p>在实习过程中，却鲜有人这样做，大家都用着默认的 Steps 级别，即使大部分 Agents 经常是空闲的。🤔</p>
+</blockquote>
+<p>那么，既然一个新 job 能否立刻执行取决于空闲 Agent 的存在，增加 Agent 的数量是否就能提高整体的吞吐量（单位时间内执行完成的 job 数量）呢？—— 很遗憾，并不是。</p>
+<p>微软毕竟要靠 Azure 盈利的，他们又提出了 『Parallel Jobs』这个概念，表示能并行执行的 job 上限。这个量是需要购买的。</p>
+<p>也就是说，如果想并行跑 job，我们不仅需要购买 Azure VM agents，还需要购买 Parallel Jobs。即使我们自己有很多台机器，也还是需要购买 Parallel Jobs。</p>
+<h1 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h1><ul>
+<li><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/training/modules/explore-azure-pipelines/3-describe-azure-pipelines">Describe Azure Pipelines</a></li>
+<li><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/training/modules/explore-azure-pipelines/4-understand-key-terms">Understand Azure Pipelines key terms</a></li>
+<li><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/training/modules/manage-azure-pipeline-agents-pools/7-communicate-with-azure-pipelines">Communicate with Azure Pipelines</a></li>
+<li><a target="_blank" rel="noopener" href="https://azure.microsoft.com/en-us/products/devops/pipelines#overview">Azure Pipelines 产品介绍</a></li>
+<li><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents">Azure Pipelines agents</a></li>
+</ul>
 
     </div>
 
@@ -380,7 +356,7 @@
   </li>
   <li class="post-copyright-link">
       <strong>本文链接：</strong>
-      <a href="https://el-nino2020.github.io/2023/07/22/Markdown-%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E6%97%B6%E8%87%AA%E5%8A%A8%E6%8B%B7%E8%B4%9D%E2%80%94%E2%80%94%E4%BB%A5-Typora-%E5%92%8C-VS-Code-%E4%B8%BA%E4%BE%8B/" title="Markdown 插入图片时自动拷贝——以 Typora 和  VS Code 为例">https://el-nino2020.github.io/2023/07/22/Markdown-插入图片时自动拷贝——以-Typora-和-VS-Code-为例/</a>
+      <a href="https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-Architecture/" title="Azure Pipelines 架构解析">https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-Architecture/</a>
   </li>
   <li class="post-copyright-license">
       <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
@@ -389,10 +365,9 @@
 </div>
 
           <div class="post-tags">
-              <a href="/tags/settings/" rel="tag"><i class="fa fa-tag"></i> settings</a>
-              <a href="/tags/VS-Code/" rel="tag"><i class="fa fa-tag"></i> VS Code</a>
-              <a href="/tags/Typora/" rel="tag"><i class="fa fa-tag"></i> Typora</a>
-              <a href="/tags/Markdown/" rel="tag"><i class="fa fa-tag"></i> Markdown</a>
+              <a href="/tags/Azure/" rel="tag"><i class="fa fa-tag"></i> Azure</a>
+              <a href="/tags/Azure-Pipelines/" rel="tag"><i class="fa fa-tag"></i> Azure Pipelines</a>
+              <a href="/tags/%E6%9E%B6%E6%9E%84/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
           </div>
 
         
@@ -407,13 +382,13 @@
 
           <div class="post-nav">
             <div class="post-nav-item">
-                <a href="/2023/07/09/PotPlayer-%E5%90%AF%E7%94%A8-Nvidia-%E8%B6%85%E5%88%86%E8%BE%A8%E7%8E%87/" rel="prev" title="PotPlayer 启用 Nvidia 超分辨率">
-                  <i class="fa fa-chevron-left"></i> PotPlayer 启用 Nvidia 超分辨率
+                <a href="/2023/10/03/%E7%AE%97%E6%B3%95%E9%A2%98002%EF%BC%9A%E8%9E%BA%E6%97%8B%E7%9F%A9%E9%98%B5-II/" rel="prev" title="算法题002：螺旋矩阵 II">
+                  <i class="fa fa-chevron-left"></i> 算法题002：螺旋矩阵 II
                 </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2023/09/04/LocalSend%EF%BC%9A%E5%B1%80%E5%9F%9F%E7%BD%91%E6%96%87%E4%BB%B6%E4%BC%A0%E8%BE%93%E5%88%A9%E5%99%A8/" rel="next" title="LocalSend：局域网文件传输利器">
-                  LocalSend：局域网文件传输利器 <i class="fa fa-chevron-right"></i>
+                <a href="/2023/10/29/%E7%AE%97%E6%B3%95%E9%A2%98003%EF%BC%9A%E5%AF%B9%E8%A7%92%E7%BA%BF%E9%81%8D%E5%8E%86-II/" rel="next" title="算法题003：对角线遍历 II">
+                  算法题003：对角线遍历 II <i class="fa fa-chevron-right"></i>
                 </a>
             </div>
           </div>

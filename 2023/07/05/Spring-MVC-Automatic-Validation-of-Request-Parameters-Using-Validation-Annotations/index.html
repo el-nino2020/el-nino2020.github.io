@@ -25,7 +25,7 @@
     <meta name="description" content="序言控制器方法（ handler ）中负责请求参数校验。 传统的写法是在每个方法的开头对所有请求参数进行校验，如果存在参数不满足条件，则抛出异常，或者提前返回错误。 Validation API 提供了一系列的注解，通过将这些注解标记在 entity 类的属性上，Spring MVC 会根据这些注解的语义，自动完成请求参数校验。如果参数不满足条件，则抛出异常。这节省了开发者手动校验请求参数的麻烦。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Spring MVC 使用 Validation 注解实现请求参数自动校验">
-<meta property="og:url" content="https://el-nino2020.github.io/2023/07/05/Spring-MVC-%E4%BD%BF%E7%94%A8-Validation-%E6%B3%A8%E8%A7%A3%E5%AE%9E%E7%8E%B0%E8%AF%B7%E6%B1%82%E5%8F%82%E6%95%B0%E8%87%AA%E5%8A%A8%E6%A0%A1%E9%AA%8C/index.html">
+<meta property="og:url" content="https://el-nino2020.github.io/2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/index.html">
 <meta property="og:site_name" content="El nino 的博客">
 <meta property="og:description" content="序言控制器方法（ handler ）中负责请求参数校验。 传统的写法是在每个方法的开头对所有请求参数进行校验，如果存在参数不满足条件，则抛出异常，或者提前返回错误。 Validation API 提供了一系列的注解，通过将这些注解标记在 entity 类的属性上，Spring MVC 会根据这些注解的语义，自动完成请求参数校验。如果参数不满足条件，则抛出异常。这节省了开发者手动校验请求参数的麻烦。">
 <meta property="og:locale" content="zh_CN">
@@ -45,11 +45,11 @@
 <meta name="twitter:image" content="https://el-nino2020.github.io/MarkDownImages/image-20230705200537754.png">
 
 
-<link rel="canonical" href="https://el-nino2020.github.io/2023/07/05/Spring-MVC-%E4%BD%BF%E7%94%A8-Validation-%E6%B3%A8%E8%A7%A3%E5%AE%9E%E7%8E%B0%E8%AF%B7%E6%B1%82%E5%8F%82%E6%95%B0%E8%87%AA%E5%8A%A8%E6%A0%A1%E9%AA%8C/">
+<link rel="canonical" href="https://el-nino2020.github.io/2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/">
 
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2023/07/05/Spring-MVC-%E4%BD%BF%E7%94%A8-Validation-%E6%B3%A8%E8%A7%A3%E5%AE%9E%E7%8E%B0%E8%AF%B7%E6%B1%82%E5%8F%82%E6%95%B0%E8%87%AA%E5%8A%A8%E6%A0%A1%E9%AA%8C/","path":"2023/07/05/Spring-MVC-使用-Validation-注解实现请求参数自动校验/","title":"Spring MVC 使用 Validation 注解实现请求参数自动校验"}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/","path":"2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/","title":"Spring MVC 使用 Validation 注解实现请求参数自动校验"}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
 <title>Spring MVC 使用 Validation 注解实现请求参数自动校验 | El nino 的博客</title>
@@ -213,7 +213,7 @@
   </div>
   <ul class="popular-posts">
     <li class="popular-posts-item">
-      <a class="popular-posts-link" href="/2023/07/08/MyBatis-Plus-%E5%AE%9E%E7%8E%B0-MySQL-JSON-%E7%B1%BB%E5%9E%8B%E5%AD%97%E6%AE%B5%E7%9A%84%E6%98%A0%E5%B0%84/" rel="bookmark">
+      <a class="popular-posts-link" href="/2023/07/08/MyBatis-Plus-Mapping-MySQL-JSON-Type/" rel="bookmark">
         <time class="popular-posts-time">2023-07-08</time>
         <br>
       MyBatis-Plus 实现 MySQL JSON 类型字段的映射
@@ -240,7 +240,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2023/07/05/Spring-MVC-%E4%BD%BF%E7%94%A8-Validation-%E6%B3%A8%E8%A7%A3%E5%AE%9E%E7%8E%B0%E8%AF%B7%E6%B1%82%E5%8F%82%E6%95%B0%E8%87%AA%E5%8A%A8%E6%A0%A1%E9%AA%8C/">
+    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="https://avatars.githubusercontent.com/u/69737612?v=4">
@@ -378,7 +378,7 @@
   </li>
   <li class="post-copyright-link">
       <strong>本文链接：</strong>
-      <a href="https://el-nino2020.github.io/2023/07/05/Spring-MVC-%E4%BD%BF%E7%94%A8-Validation-%E6%B3%A8%E8%A7%A3%E5%AE%9E%E7%8E%B0%E8%AF%B7%E6%B1%82%E5%8F%82%E6%95%B0%E8%87%AA%E5%8A%A8%E6%A0%A1%E9%AA%8C/" title="Spring MVC 使用 Validation 注解实现请求参数自动校验">https://el-nino2020.github.io/2023/07/05/Spring-MVC-使用-Validation-注解实现请求参数自动校验/</a>
+      <a href="https://el-nino2020.github.io/2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/" title="Spring MVC 使用 Validation 注解实现请求参数自动校验">https://el-nino2020.github.io/2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/</a>
   </li>
   <li class="post-copyright-license">
       <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
@@ -405,12 +405,12 @@
 
           <div class="post-nav">
             <div class="post-nav-item">
-                <a href="/2023/07/04/Hexo%E8%87%AA%E5%AE%9A%E4%B9%89404%E9%A1%B5%E9%9D%A2/" rel="prev" title="Hexo自定义404页面">
+                <a href="/2023/07/04/Hexo-custom-404/" rel="prev" title="Hexo自定义404页面">
                   <i class="fa fa-chevron-left"></i> Hexo自定义404页面
                 </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2023/07/08/MyBatis-Plus-%E5%AE%9E%E7%8E%B0-MySQL-JSON-%E7%B1%BB%E5%9E%8B%E5%AD%97%E6%AE%B5%E7%9A%84%E6%98%A0%E5%B0%84/" rel="next" title="MyBatis-Plus 实现 MySQL JSON 类型字段的映射">
+                <a href="/2023/07/08/MyBatis-Plus-Mapping-MySQL-JSON-Type/" rel="next" title="MyBatis-Plus 实现 MySQL JSON 类型字段的映射">
                   MyBatis-Plus 实现 MySQL JSON 类型字段的映射 <i class="fa fa-chevron-right"></i>
                 </a>
             </div>

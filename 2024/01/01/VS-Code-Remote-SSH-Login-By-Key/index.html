@@ -22,32 +22,34 @@
 
 <script class="next-config" data-name="main" type="application/json">{"hostname":"el-nino2020.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.17.1","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12},"copycode":{"enable":true,"style":null},"bookmark":{"enable":false,"color":"#008000","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":false,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
 
-    <meta name="description" content="介绍Azure Pipelines 是 Azure DevOps（SaaS 平台）的一个组件，是一个自动化 CI&#x2F;CD 的“流水线”。类似的技术有GitHub Actions 和 Jenkins。 作为使用者，我们只需要在 YAML 中定义各个任务，触发 Pipeline，Azure Pipelines 就能帮我们自动执行这些任务。 那么，任务是怎么被执行的呢？是否存在并行任务上限？我们">
+    <meta name="description" content="序言VS Code 的 Remote SSH 插件提供了远程连接其他主机的功能。连接就需要用户名和密码，而密钥可以在每次登录时不输入密码、直接登录。 但是，VS Code 实际上只是提供了 GUI，而 SSH 如何使用密钥登录，则是另一码事。两者不应该混为一谈。 本文将主要讲解 SSH 密钥在本机和远程机器上如何配置。之后，讲解 VS Code Remote SSH 插件的使用。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Azure Pipelines 架构解析">
-<meta property="og:url" content="https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-%E6%9E%B6%E6%9E%84%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:title" content="VS Code Remote SSH 密钥登录">
+<meta property="og:url" content="https://el-nino2020.github.io/2024/01/01/VS-Code-Remote-SSH-Login-By-Key/index.html">
 <meta property="og:site_name" content="El nino 的博客">
-<meta property="og:description" content="介绍Azure Pipelines 是 Azure DevOps（SaaS 平台）的一个组件，是一个自动化 CI&#x2F;CD 的“流水线”。类似的技术有GitHub Actions 和 Jenkins。 作为使用者，我们只需要在 YAML 中定义各个任务，触发 Pipeline，Azure Pipelines 就能帮我们自动执行这些任务。 那么，任务是怎么被执行的呢？是否存在并行任务上限？我们">
+<meta property="og:description" content="序言VS Code 的 Remote SSH 插件提供了远程连接其他主机的功能。连接就需要用户名和密码，而密钥可以在每次登录时不输入密码、直接登录。 但是，VS Code 实际上只是提供了 GUI，而 SSH 如何使用密钥登录，则是另一码事。两者不应该混为一谈。 本文将主要讲解 SSH 密钥在本机和远程机器上如何配置。之后，讲解 VS Code Remote SSH 插件的使用。">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/key-pipeline-concepts-overview-ca80c85c.png">
-<meta property="article:published_time" content="2023-10-06T12:11:59.000Z">
-<meta property="article:modified_time" content="2023-10-06T12:11:59.000Z">
+<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20240101130622357.png">
+<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20240101130733756.png">
+<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20240101130804525.png">
+<meta property="article:published_time" content="2024-01-01T04:27:56.000Z">
+<meta property="article:modified_time" content="2024-01-01T04:27:56.000Z">
 <meta property="article:author" content="El nino">
-<meta property="article:tag" content="Azure">
-<meta property="article:tag" content="Azure Pipelines">
-<meta property="article:tag" content="架构">
+<meta property="article:tag" content="settings">
+<meta property="article:tag" content="VS Code">
+<meta property="article:tag" content="SSH">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://el-nino2020.github.io/MarkDownImages/key-pipeline-concepts-overview-ca80c85c.png">
+<meta name="twitter:image" content="https://el-nino2020.github.io/MarkDownImages/image-20240101130622357.png">
 
 
-<link rel="canonical" href="https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-%E6%9E%B6%E6%9E%84%E8%A7%A3%E6%9E%90/">
+<link rel="canonical" href="https://el-nino2020.github.io/2024/01/01/VS-Code-Remote-SSH-Login-By-Key/">
 
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-%E6%9E%B6%E6%9E%84%E8%A7%A3%E6%9E%90/","path":"2023/10/06/Azure-Pipelines-架构解析/","title":"Azure Pipelines 架构解析"}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2024/01/01/VS-Code-Remote-SSH-Login-By-Key/","path":"2024/01/01/VS-Code-Remote-SSH-Login-By-Key/","title":"VS Code Remote SSH 密钥登录"}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
-<title>Azure Pipelines 架构解析 | El nino 的博客</title>
+<title>VS Code Remote SSH 密钥登录 | El nino 的博客</title>
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-SBFGGZ14VS"></script>
   <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"G-SBFGGZ14VS","only_pageview":false}</script>
@@ -151,7 +153,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BB%8B%E7%BB%8D"><span class="nav-number">1.</span> <span class="nav-text">介绍</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Azure-Pipelines-%E6%9C%AF%E8%AF%AD"><span class="nav-number">2.</span> <span class="nav-text">Azure Pipelines 术语</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Azure-Pipelines-%E4%BB%BB%E5%8A%A1%E8%B0%83%E5%BA%A6"><span class="nav-number">3.</span> <span class="nav-text">Azure Pipelines 任务调度</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Parallel-Jobs"><span class="nav-number">4.</span> <span class="nav-text">Parallel Jobs</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E9%93%BE%E6%8E%A5"><span class="nav-number">5.</span> <span class="nav-text">参考链接</span></a></li></ol></div>
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BA%8F%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">序言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83"><span class="nav-number">2.</span> <span class="nav-text">环境</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%AC%E6%9C%BA-SSH-%E9%85%8D%E7%BD%AE"><span class="nav-number">3.</span> <span class="nav-text">本机 SSH 配置</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%BF%9C%E7%A8%8B%E4%B8%BB%E6%9C%BA-SSH-%E9%85%8D%E7%BD%AE"><span class="nav-number">4.</span> <span class="nav-text">远程主机 SSH 配置</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95"><span class="nav-number">5.</span> <span class="nav-text">测试</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#VS-Code-%E9%85%8D%E7%BD%AE"><span class="nav-number">6.</span> <span class="nav-text">VS Code 配置</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">7.</span> <span class="nav-text">参考</span></a></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -218,7 +220,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-%E6%9E%B6%E6%9E%84%E8%A7%A3%E6%9E%90/">
+    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2024/01/01/VS-Code-Remote-SSH-Login-By-Key/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="https://avatars.githubusercontent.com/u/69737612?v=4">
@@ -231,12 +233,12 @@
     </span>
 
     <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="Azure Pipelines 架构解析 | El nino 的博客">
+      <meta itemprop="name" content="VS Code Remote SSH 密钥登录 | El nino 的博客">
       <meta itemprop="description" content="">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          Azure Pipelines 架构解析
+          VS Code Remote SSH 密钥登录
         </h1>
 
         <div class="post-meta-container">
@@ -247,7 +249,7 @@
       </span>
       <span class="post-meta-item-text">发表于</span>
 
-      <time title="创建时间：2023-10-06 20:11:59" itemprop="dateCreated datePublished" datetime="2023-10-06T20:11:59+08:00">2023-10-06</time>
+      <time title="创建时间：2024-01-01 12:27:56" itemprop="dateCreated datePublished" datetime="2024-01-01T12:27:56+08:00">2024-01-01</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -255,11 +257,11 @@
       </span>
       <span class="post-meta-item-text">分类于</span>
         <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/tech/" itemprop="url" rel="index"><span itemprop="name">tech</span></a>
+          <a href="/categories/softwares/" itemprop="url" rel="index"><span itemprop="name">softwares</span></a>
         </span>
           ，
         <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/tech/Azure/" itemprop="url" rel="index"><span itemprop="name">Azure</span></a>
+          <a href="/categories/softwares/VS-Code/" itemprop="url" rel="index"><span itemprop="name">VS Code</span></a>
         </span>
     </span>
 
@@ -277,14 +279,14 @@
         <i class="far fa-file-word"></i>
       </span>
       <span class="post-meta-item-text">本文字数：</span>
-      <span>934</span>
+      <span>651</span>
     </span>
     <span class="post-meta-item" title="阅读时长">
       <span class="post-meta-item-icon">
         <i class="far fa-clock"></i>
       </span>
       <span class="post-meta-item-text">阅读时长 &asymp;</span>
-      <span>3 分钟</span>
+      <span>2 分钟</span>
     </span>
 </div>
 
@@ -294,50 +296,53 @@
     
     
     
-    <div class="post-body" itemprop="articleBody"><h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h1><p>Azure Pipelines 是 Azure DevOps（SaaS 平台）的一个组件，是一个自动化 CI&#x2F;CD 的“流水线”。类似的技术有<a target="_blank" rel="noopener" href="https://github.com/features/actions">GitHub Actions</a> 和 <a target="_blank" rel="noopener" href="https://www.jenkins.io/">Jenkins</a>。</p>
-<p>作为使用者，我们只需要在 YAML 中定义各个任务，触发 Pipeline，Azure Pipelines 就能帮我们自动执行这些任务。</p>
-<p>那么，任务是怎么被执行的呢？是否存在并行任务上限？我们怎样设计更高效地定义 YAML，从而让一次 Pipeline 更快地跑完呢？—— 本文将从任务调度的角度，解析 Azure Pipelines 的架构。在探讨的过程中，上述问题自然能得到解答。</p>
+    <div class="post-body" itemprop="articleBody"><h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>VS Code 的 Remote SSH 插件提供了远程连接其他主机的功能。连接就需要用户名和密码，而密钥可以在每次登录时不输入密码、直接登录。</p>
+<p>但是，VS Code 实际上只是提供了 GUI，而 SSH 如何使用密钥登录，则是另一码事。两者不应该混为一谈。</p>
+<p>本文将主要讲解 SSH 密钥在本机和远程机器上如何配置。之后，讲解 VS Code Remote SSH 插件的使用。</p>
 <span id="more"></span>
 
-<h1 id="Azure-Pipelines-术语"><a href="#Azure-Pipelines-术语" class="headerlink" title="Azure Pipelines 术语"></a>Azure Pipelines 术语</h1><p><img src="/MarkDownImages/key-pipeline-concepts-overview-ca80c85c.png" alt="img"></p>
-<p><strong>对于 Azure Pipelines 的使用者</strong>，一个 YAML 文件唯一定义了一条 Pipeline 的运行逻辑：</p>
-<ul>
-<li>一条 Pipeline 可以包含多个 Stage</li>
-<li>一个 Stage 可以包含多个 Job</li>
-<li>一个 Job 可以包含多个 Step</li>
-<li>一个 Step 可以包含多个 task</li>
+<h1 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h1><ul>
+<li>本机：Windows 10</li>
+<li>远程机器：本地虚拟机 CentOS 8，root 用户</li>
 </ul>
-<p><strong>对于 Azure Pipelines 本身</strong>，当一条 Pipeline 被触发，它需要调用计算资源，去执行 Pipeline 的逻辑。具体来说，会有一台机器（agent）负责执行一个 job。</p>
-<p>一个 job 只会在一台 agent 上跑，它不会被进一步地拆分。而一条 Pipeline 的所有 job 可能会分配给不同的 agent 去执行。</p>
-<p>这种分配是如何完成的呢？</p>
-<h1 id="Azure-Pipelines-任务调度"><a href="#Azure-Pipelines-任务调度" class="headerlink" title="Azure Pipelines 任务调度"></a>Azure Pipelines 任务调度</h1><p>Azure Pipelines 的任务调度是一种典型的分布式任务调度模型（类似的技术有<a target="_blank" rel="noopener" href="http://www.quartz-scheduler.org/">QUARTZ</a> 和 <a target="_blank" rel="noopener" href="https://github.com/xuxueli/xxl-job">xxl-job</a>）：</p>
+<h1 id="本机-SSH-配置"><a href="#本机-SSH-配置" class="headerlink" title="本机 SSH 配置"></a>本机 SSH 配置</h1><p>使用 <code>ssh-keygen</code> 命令，会在 <code>C:\users\&lt;user&gt;\.ssh</code> 目录下创建<strong>本机</strong>的 RSA 公私钥：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">PS</span> C:\Users\Elnino\.ssh&gt; <span class="built_in">dir</span></span><br><span class="line">    目录: C:\Users\Elnino\.ssh</span><br><span class="line">Mode                 LastWriteTime         Length Name</span><br><span class="line"><span class="literal">----</span>                 <span class="literal">-------------</span>         <span class="literal">------</span> <span class="literal">----</span></span><br><span class="line"><span class="literal">-a----</span>          <span class="number">2024</span>/<span class="number">1</span>/<span class="number">1</span>     <span class="number">12</span>:<span class="number">26</span>             <span class="number">91</span> config</span><br><span class="line"><span class="literal">-a----</span>         <span class="number">2023</span>/<span class="number">9</span>/<span class="number">30</span>     <span class="number">18</span>:<span class="number">03</span>           <span class="number">2610</span> id_rsa</span><br><span class="line"><span class="literal">-a----</span>         <span class="number">2023</span>/<span class="number">9</span>/<span class="number">30</span>     <span class="number">18</span>:<span class="number">03</span>            <span class="number">576</span> id_rsa.pub</span><br><span class="line"><span class="literal">-a----</span>        <span class="number">2023</span>/<span class="number">12</span>/<span class="number">18</span>     <span class="number">20</span>:<span class="number">42</span>           <span class="number">1398</span> known_hosts</span><br><span class="line"><span class="literal">-a----</span>         <span class="number">2023</span>/<span class="number">9</span>/<span class="number">30</span>     <span class="number">18</span>:<span class="number">03</span>             <span class="number">92</span> known_hosts.old</span><br></pre></td></tr></table></figure>
+
+<p><code>id_rsa</code> 是私钥，<code>id_rsa.pub</code> 是公钥</p>
+<h1 id="远程主机-SSH-配置"><a href="#远程主机-SSH-配置" class="headerlink" title="远程主机 SSH 配置"></a>远程主机 SSH 配置</h1><p>将<strong>本机</strong>的 <code>id_rsa.pub</code> 上传到 Linux 远程主机的 <code>~/ssh</code> 目录，并改名为 <code>authorized_keys</code></p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@CentOS100 .ssh]<span class="comment"># ll</span></span><br><span class="line">total 16</span><br><span class="line">-rw-r--r--. 1 root root 576 Jan  1 11:50 authorized_keys</span><br><span class="line">-rw-------. 1 root root 411 Jul  1  2023 id_ed25519</span><br><span class="line">-rw-r--r--. 1 root root  96 Jul  1  2023 id_ed25519.pub</span><br><span class="line">-rw-r--r--. 1 root root 880 Dec 18 21:07 known_hosts</span><br></pre></td></tr></table></figure>
+
+<h1 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h1><p>以上步骤，就是 SSH 密钥登录的全部配置。</p>
+<p>打开本机的PowerShell，使用 <code>ssh &lt;user&gt;@&lt;ip&gt;</code> 测试连接。应该能够直接登录，不需要输入密码。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">PS</span> C:\Users\Elnino&gt; ssh root@CentOS100</span><br><span class="line">Activate the web console with: systemctl enable <span class="literal">--now</span> cockpit.socket</span><br><span class="line"></span><br><span class="line">Last login: Mon Jan  <span class="number">1</span> <span class="number">12</span>:<span class="number">26</span>:<span class="number">15</span> <span class="number">2024</span> from &lt;ip&gt;</span><br><span class="line">[<span class="type">root</span>@<span class="type">CentOS100</span> ~]<span class="comment"># pwd</span></span><br><span class="line">/root</span><br></pre></td></tr></table></figure>
+
+<h1 id="VS-Code-配置"><a href="#VS-Code-配置" class="headerlink" title="VS Code 配置"></a>VS Code 配置</h1><ol>
+<li><p>安装 <a target="_blank" rel="noopener" href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh">Remote - SSH</a> 插件：</p>
+<p> <img src="/MarkDownImages/image-20240101130622357.png" alt="image-20240101130622357"></p>
+</li>
+<li><p>依次点击这3个按钮，进入配置文件：</p>
+<p> <img src="/MarkDownImages/image-20240101130733756.png" alt="image-20240101130733756"></p>
+</li>
+<li><p>填写配置文件（这个文件其实是主机的 SSH 配置）：</p>
+<p> <img src="/MarkDownImages/image-20240101130804525.png" alt="image-20240101130804525"></p>
 <ul>
-<li>Azure Pipelines 上有一个<strong>『任务队列』</strong>，里面存放着所有待运行的 <u>job</u>（既指任务调度模型中的 Job&#x2F;Task，又指 Pipeline 中的 job 术语）</li>
-<li>Agent 是 Worker，它会定时地查看<strong>『任务队列』</strong>中是否有 job 要运行。如果有，则某一台 Agent 会竞争获得执行该 Job 的权利，同时获得访问相应资源的权限。此时，它就可以开始执行这个 job 了。</li>
-</ul>
-<p>因此，一条 Pipeline 是这样执行的：</p>
-<ol>
-<li>触发 Pipeline。Azure Pipelines 解析 YAML，拆分为多个 Job，存入『任务队列』中。</li>
-<li>假如此时有空闲的 Agent，说明『任务队列』此时为空。那么，它监听到了任务队列中加入新 job 后，开始与其他 Agent（假如有的话）竞争执行该 job。<ul>
-<li>竞争成功，开始执行；</li>
-<li>竞争失败，继续监听；</li>
+<li><code>Host</code>：识别这个远程连接的 Id，可以随便起个名字；</li>
+<li><code>HostName</code>：远程主机的域名或 IP；</li>
+<li><code>User</code>：登录远程主机的用户；</li>
+<li><code>IdentityFile</code>：对应 <code>authorized_keys</code> 的<strong>私钥</strong>的存放位置；</li>
 </ul>
 </li>
-<li>假如此时没有空闲的 Agent，则说明『任务队列』之前已经有 job 了，或者没有 Agent 跑完自己之前领取的 job。那么这些新产生的 job 就会有序地等待 Agent 来执行。（job 按照 Pipeline 触发的时间来排队等待，因此是公平的）</li>
 </ol>
-<h1 id="Parallel-Jobs"><a href="#Parallel-Jobs" class="headerlink" title="Parallel Jobs"></a>Parallel Jobs</h1><p>任务调度框架意味着<strong>并行（parallel）</strong>。这也意味着，我们在定义 YAML 时，<strong>应该将没有依赖的 Steps 或 Tasks 提升为 Jobs，使得它们能够并行执行，缩短运行时间</strong>。</p>
-<blockquote>
-<p>在实习过程中，却鲜有人这样做，大家都用着默认的 Steps 级别，即使大部分 Agents 经常是空闲的。🤔</p>
-</blockquote>
-<p>那么，既然一个新 job 能否立刻执行取决于空闲 Agent 的存在，增加 Agent 的数量是否就能提高整体的吞吐量（单位时间内执行完成的 job 数量）呢？—— 很遗憾，并不是。</p>
-<p>微软毕竟要靠 Azure 盈利的，他们又提出了 『Parallel Jobs』这个概念，表示能并行执行的 job 上限。这个量是需要购买的。</p>
-<p>也就是说，如果想并行跑 job，我们不仅需要购买 Azure VM agents，还需要购买 Parallel Jobs。即使我们自己有很多台机器，也还是需要购买 Parallel Jobs。</p>
-<h1 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h1><ul>
-<li><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/training/modules/explore-azure-pipelines/3-describe-azure-pipelines">Describe Azure Pipelines</a></li>
-<li><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/training/modules/explore-azure-pipelines/4-understand-key-terms">Understand Azure Pipelines key terms</a></li>
-<li><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/training/modules/manage-azure-pipeline-agents-pools/7-communicate-with-azure-pipelines">Communicate with Azure Pipelines</a></li>
-<li><a target="_blank" rel="noopener" href="https://azure.microsoft.com/en-us/products/devops/pipelines#overview">Azure Pipelines 产品介绍</a></li>
-<li><a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents">Azure Pipelines agents</a></li>
+<p>关于配置文件的几点说明：</p>
+<ul>
+<li>如果没有在远程主机配置 <code>authorized_keys</code> ，那么 <code>IdentityFile</code> 属性不会起作用。登录时会要求输入密码；</li>
+<li>在这个案例中，<code>IdentityFile</code> 其实没必要配置。因为 <code>authorized_keys</code> 就是本机的公钥，而 SSH 默认使用本机的私钥尝试连接；</li>
+<li>一般情况下，<code>authorized_keys</code> 不会是本机的公钥，此时 <code>IdentityFile</code> 必须要配置，否则就要输入密码；</li>
+</ul>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ul>
+<li><a target="_blank" rel="noopener" href="https://medium.com/@sean4deepak/using-ssh-key-authentication-in-visual-studio-codes-remote-ssh-extension-4e5b922448e7">Using SSH Key Authentication in Visual Studio Code’ s Remote SSH Extension</a></li>
+<li><a target="_blank" rel="noopener" href="https://adamtheautomator.com/add-ssh-key-to-vs-code/">Add SSH Key to VS Code and Connect to a Host</a></li>
+<li><a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/48328446/id-rsa-pub-file-ssh-error-invalid-format">id_rsa.pub file SSH Error: invalid format</a></li>
 </ul>
 
     </div>
@@ -356,7 +361,7 @@
   </li>
   <li class="post-copyright-link">
       <strong>本文链接：</strong>
-      <a href="https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-%E6%9E%B6%E6%9E%84%E8%A7%A3%E6%9E%90/" title="Azure Pipelines 架构解析">https://el-nino2020.github.io/2023/10/06/Azure-Pipelines-架构解析/</a>
+      <a href="https://el-nino2020.github.io/2024/01/01/VS-Code-Remote-SSH-Login-By-Key/" title="VS Code Remote SSH 密钥登录">https://el-nino2020.github.io/2024/01/01/VS-Code-Remote-SSH-Login-By-Key/</a>
   </li>
   <li class="post-copyright-license">
       <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
@@ -365,9 +370,9 @@
 </div>
 
           <div class="post-tags">
-              <a href="/tags/Azure/" rel="tag"><i class="fa fa-tag"></i> Azure</a>
-              <a href="/tags/Azure-Pipelines/" rel="tag"><i class="fa fa-tag"></i> Azure Pipelines</a>
-              <a href="/tags/%E6%9E%B6%E6%9E%84/" rel="tag"><i class="fa fa-tag"></i> 架构</a>
+              <a href="/tags/settings/" rel="tag"><i class="fa fa-tag"></i> settings</a>
+              <a href="/tags/VS-Code/" rel="tag"><i class="fa fa-tag"></i> VS Code</a>
+              <a href="/tags/SSH/" rel="tag"><i class="fa fa-tag"></i> SSH</a>
           </div>
 
         
@@ -382,13 +387,13 @@
 
           <div class="post-nav">
             <div class="post-nav-item">
-                <a href="/2023/10/03/%E7%AE%97%E6%B3%95%E9%A2%98002%EF%BC%9A%E8%9E%BA%E6%97%8B%E7%9F%A9%E9%98%B5-II/" rel="prev" title="算法题002：螺旋矩阵 II">
-                  <i class="fa fa-chevron-left"></i> 算法题002：螺旋矩阵 II
+                <a href="/2023/12/20/Python-venv-use/" rel="prev" title="Python venv 使用">
+                  <i class="fa fa-chevron-left"></i> Python venv 使用
                 </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2023/10/29/%E7%AE%97%E6%B3%95%E9%A2%98003%EF%BC%9A%E5%AF%B9%E8%A7%92%E7%BA%BF%E9%81%8D%E5%8E%86-II/" rel="next" title="算法题003：对角线遍历 II">
-                  算法题003：对角线遍历 II <i class="fa fa-chevron-right"></i>
+                <a href="/2024/01/14/pip-conda-Common-Commands/" rel="next" title="pip & conda 常用指令">
+                  pip & conda 常用指令 <i class="fa fa-chevron-right"></i>
                 </a>
             </div>
           </div>

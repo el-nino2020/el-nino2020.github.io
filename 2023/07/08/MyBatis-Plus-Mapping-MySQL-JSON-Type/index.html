@@ -25,7 +25,7 @@
     <meta name="description" content="序言MySQL 支持 JSON 类型的字段。相比字符串类型的字段， JSON 类型有如下好处：  自动检查 JSON 语法是否正确 底层支持快速存取 JSON 中的元素。不需要将整个 字符串 全部读取出来，再解析成 JSON 对象  在逻辑上，JSON 与 POJO 无异。Spring MVC 已经实现了 Controller 层两者的自动转化，这体现在请求参数和返回值上。那么，Repositor">
 <meta property="og:type" content="article">
 <meta property="og:title" content="MyBatis-Plus 实现 MySQL JSON 类型字段的映射">
-<meta property="og:url" content="https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-%E5%AE%9E%E7%8E%B0-MySQL-JSON-%E7%B1%BB%E5%9E%8B%E5%AD%97%E6%AE%B5%E7%9A%84%E6%98%A0%E5%B0%84/index.html">
+<meta property="og:url" content="https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-Mapping-MySQL-JSON-Type/index.html">
 <meta property="og:site_name" content="El nino 的博客">
 <meta property="og:description" content="序言MySQL 支持 JSON 类型的字段。相比字符串类型的字段， JSON 类型有如下好处：  自动检查 JSON 语法是否正确 底层支持快速存取 JSON 中的元素。不需要将整个 字符串 全部读取出来，再解析成 JSON 对象  在逻辑上，JSON 与 POJO 无异。Spring MVC 已经实现了 Controller 层两者的自动转化，这体现在请求参数和返回值上。那么，Repositor">
 <meta property="og:locale" content="zh_CN">
@@ -41,11 +41,11 @@
 <meta name="twitter:card" content="summary">
 
 
-<link rel="canonical" href="https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-%E5%AE%9E%E7%8E%B0-MySQL-JSON-%E7%B1%BB%E5%9E%8B%E5%AD%97%E6%AE%B5%E7%9A%84%E6%98%A0%E5%B0%84/">
+<link rel="canonical" href="https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-Mapping-MySQL-JSON-Type/">
 
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-%E5%AE%9E%E7%8E%B0-MySQL-JSON-%E7%B1%BB%E5%9E%8B%E5%AD%97%E6%AE%B5%E7%9A%84%E6%98%A0%E5%B0%84/","path":"2023/07/08/MyBatis-Plus-实现-MySQL-JSON-类型字段的映射/","title":"MyBatis-Plus 实现 MySQL JSON 类型字段的映射"}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-Mapping-MySQL-JSON-Type/","path":"2023/07/08/MyBatis-Plus-Mapping-MySQL-JSON-Type/","title":"MyBatis-Plus 实现 MySQL JSON 类型字段的映射"}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
 <title>MyBatis-Plus 实现 MySQL JSON 类型字段的映射 | El nino 的博客</title>
@@ -209,7 +209,7 @@
   </div>
   <ul class="popular-posts">
     <li class="popular-posts-item">
-      <a class="popular-posts-link" href="/2023/07/05/Spring-MVC-%E4%BD%BF%E7%94%A8-Validation-%E6%B3%A8%E8%A7%A3%E5%AE%9E%E7%8E%B0%E8%AF%B7%E6%B1%82%E5%8F%82%E6%95%B0%E8%87%AA%E5%8A%A8%E6%A0%A1%E9%AA%8C/" rel="bookmark">
+      <a class="popular-posts-link" href="/2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/" rel="bookmark">
         <time class="popular-posts-time">2023-07-05</time>
         <br>
       Spring MVC 使用 Validation 注解实现请求参数自动校验
@@ -236,7 +236,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-%E5%AE%9E%E7%8E%B0-MySQL-JSON-%E7%B1%BB%E5%9E%8B%E5%AD%97%E6%AE%B5%E7%9A%84%E6%98%A0%E5%B0%84/">
+    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-Mapping-MySQL-JSON-Type/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="https://avatars.githubusercontent.com/u/69737612?v=4">
@@ -364,7 +364,7 @@
   </li>
   <li class="post-copyright-link">
       <strong>本文链接：</strong>
-      <a href="https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-%E5%AE%9E%E7%8E%B0-MySQL-JSON-%E7%B1%BB%E5%9E%8B%E5%AD%97%E6%AE%B5%E7%9A%84%E6%98%A0%E5%B0%84/" title="MyBatis-Plus 实现 MySQL JSON 类型字段的映射">https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-实现-MySQL-JSON-类型字段的映射/</a>
+      <a href="https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-Mapping-MySQL-JSON-Type/" title="MyBatis-Plus 实现 MySQL JSON 类型字段的映射">https://el-nino2020.github.io/2023/07/08/MyBatis-Plus-Mapping-MySQL-JSON-Type/</a>
   </li>
   <li class="post-copyright-license">
       <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
@@ -393,12 +393,12 @@
 
           <div class="post-nav">
             <div class="post-nav-item">
-                <a href="/2023/07/05/Spring-MVC-%E4%BD%BF%E7%94%A8-Validation-%E6%B3%A8%E8%A7%A3%E5%AE%9E%E7%8E%B0%E8%AF%B7%E6%B1%82%E5%8F%82%E6%95%B0%E8%87%AA%E5%8A%A8%E6%A0%A1%E9%AA%8C/" rel="prev" title="Spring MVC 使用 Validation 注解实现请求参数自动校验">
+                <a href="/2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/" rel="prev" title="Spring MVC 使用 Validation 注解实现请求参数自动校验">
                   <i class="fa fa-chevron-left"></i> Spring MVC 使用 Validation 注解实现请求参数自动校验
                 </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2023/07/09/PotPlayer-%E5%90%AF%E7%94%A8-Nvidia-%E8%B6%85%E5%88%86%E8%BE%A8%E7%8E%87/" rel="next" title="PotPlayer 启用 Nvidia 超分辨率">
+                <a href="/2023/07/09/PotPlayer-Enable-Nvidia-Super-Resolution/" rel="next" title="PotPlayer 启用 Nvidia 超分辨率">
                   PotPlayer 启用 Nvidia 超分辨率 <i class="fa fa-chevron-right"></i>
                 </a>
             </div>

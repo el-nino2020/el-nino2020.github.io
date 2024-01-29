@@ -22,28 +22,29 @@
 
 <script class="next-config" data-name="main" type="application/json">{"hostname":"el-nino2020.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.17.1","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12},"copycode":{"enable":true,"style":null},"bookmark":{"enable":false,"color":"#008000","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":false,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
 
-    <meta name="description" content="自定义 404 页面首先，创建一个名为 404 的 post 1hexo new 404  在对应的 md 文件中，我们可以自定义 404 页面。由于 Hexo 框架的特性，我们可以编写 JS 脚本，让页面动起来。 这里给出我的 404 页面。可以看到，上面有一个倒计时。当倒计时为 0 时，会自动跳转到首页。当然，用户也可以手动点击，从而返回首页。 下面是对应的代码，直接放在 md 文件中即可：">
+    <meta name="description" content="序言Python 以其模块丰富而著称。但是，不同于 Java 开发中 Maven 使用 group Id、artifact Id 和 version 来唯一确定一个依赖。在实践中，绝大多数 Python 项目只通过模块名来区分模块。pip install &lt;module&gt;，一个模块就装好了。那么模块的版本呢？大部分项目的 requirements 都不会提及版本，造成后来者跑项目时不停">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hexo自定义404页面">
-<meta property="og:url" content="https://el-nino2020.github.io/2023/07/04/Hexo%E8%87%AA%E5%AE%9A%E4%B9%89404%E9%A1%B5%E9%9D%A2/index.html">
+<meta property="og:title" content="Python venv 使用">
+<meta property="og:url" content="https://el-nino2020.github.io/2023/12/20/Python-venv-use/index.html">
 <meta property="og:site_name" content="El nino 的博客">
-<meta property="og:description" content="自定义 404 页面首先，创建一个名为 404 的 post 1hexo new 404  在对应的 md 文件中，我们可以自定义 404 页面。由于 Hexo 框架的特性，我们可以编写 JS 脚本，让页面动起来。 这里给出我的 404 页面。可以看到，上面有一个倒计时。当倒计时为 0 时，会自动跳转到首页。当然，用户也可以手动点击，从而返回首页。 下面是对应的代码，直接放在 md 文件中即可：">
+<meta property="og:description" content="序言Python 以其模块丰富而著称。但是，不同于 Java 开发中 Maven 使用 group Id、artifact Id 和 version 来唯一确定一个依赖。在实践中，绝大多数 Python 项目只通过模块名来区分模块。pip install &lt;module&gt;，一个模块就装好了。那么模块的版本呢？大部分项目的 requirements 都不会提及版本，造成后来者跑项目时不停">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2023-07-04T12:30:50.000Z">
-<meta property="article:modified_time" content="2023-07-04T12:30:50.000Z">
+<meta property="article:published_time" content="2023-12-20T11:03:21.000Z">
+<meta property="article:modified_time" content="2023-12-20T11:03:21.000Z">
 <meta property="article:author" content="El nino">
-<meta property="article:tag" content="Hexo">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="venv">
 <meta name="twitter:card" content="summary">
 
 
-<link rel="canonical" href="https://el-nino2020.github.io/2023/07/04/Hexo%E8%87%AA%E5%AE%9A%E4%B9%89404%E9%A1%B5%E9%9D%A2/">
+<link rel="canonical" href="https://el-nino2020.github.io/2023/12/20/Python-venv-use/">
 
 
 
-<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2023/07/04/Hexo%E8%87%AA%E5%AE%9A%E4%B9%89404%E9%A1%B5%E9%9D%A2/","path":"2023/07/04/Hexo自定义404页面/","title":"Hexo自定义404页面"}</script>
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://el-nino2020.github.io/2023/12/20/Python-venv-use/","path":"2023/12/20/Python-venv-use/","title":"Python venv 使用"}</script>
 
 <script class="next-config" data-name="calendar" type="application/json">""</script>
-<title>Hexo自定义404页面 | El nino 的博客</title>
+<title>Python venv 使用 | El nino 的博客</title>
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-SBFGGZ14VS"></script>
   <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"G-SBFGGZ14VS","only_pageview":false}</script>
@@ -147,7 +148,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%87%AA%E5%AE%9A%E4%B9%89-404-%E9%A1%B5%E9%9D%A2"><span class="nav-number">1.</span> <span class="nav-text">自定义 404 页面</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E8%AE%A9%E7%BD%91%E7%AB%99%E8%B7%B3%E8%BD%AC%E5%88%B0%E8%87%AA%E5%AE%9A%E4%B9%89%E9%A1%B5%E9%9D%A2%EF%BC%9F"><span class="nav-number">2.</span> <span class="nav-text">如何让网站跳转到自定义页面？</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%AB%A0"><span class="nav-number">3.</span> <span class="nav-text">参考文章</span></a></li></ol></div>
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BA%8F%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">序言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8"><span class="nav-number">2.</span> <span class="nav-text">使用</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">3.</span> <span class="nav-text">参考</span></a></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -197,6 +198,23 @@
 
     
         <div class="pjax">
+        <div class="sidebar-inner sidebar-post-related">
+          <div class="animated">
+              <div class="links-of-blogroll-title"><i class="fa fa-signs-post fa-fw"></i>
+    相关文章
+  </div>
+  <ul class="popular-posts">
+    <li class="popular-posts-item">
+      <a class="popular-posts-link" href="/2024/01/14/pip-conda-Common-Commands/" rel="bookmark">
+        <time class="popular-posts-time">2024-01-14</time>
+        <br>
+      pip & conda 常用指令
+      </a>
+    </li>
+  </ul>
+
+          </div>
+        </div>
         </div>
   </aside>
 
@@ -214,7 +232,7 @@
   
 
   <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2023/07/04/Hexo%E8%87%AA%E5%AE%9A%E4%B9%89404%E9%A1%B5%E9%9D%A2/">
+    <link itemprop="mainEntityOfPage" href="https://el-nino2020.github.io/2023/12/20/Python-venv-use/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="https://avatars.githubusercontent.com/u/69737612?v=4">
@@ -227,12 +245,12 @@
     </span>
 
     <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
-      <meta itemprop="name" content="Hexo自定义404页面 | El nino 的博客">
+      <meta itemprop="name" content="Python venv 使用 | El nino 的博客">
       <meta itemprop="description" content="">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          Hexo自定义404页面
+          Python venv 使用
         </h1>
 
         <div class="post-meta-container">
@@ -243,7 +261,7 @@
       </span>
       <span class="post-meta-item-text">发表于</span>
 
-      <time title="创建时间：2023-07-04 20:30:50" itemprop="dateCreated datePublished" datetime="2023-07-04T20:30:50+08:00">2023-07-04</time>
+      <time title="创建时间：2023-12-20 19:03:21" itemprop="dateCreated datePublished" datetime="2023-12-20T19:03:21+08:00">2023-12-20</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -251,11 +269,11 @@
       </span>
       <span class="post-meta-item-text">分类于</span>
         <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/softwares/" itemprop="url" rel="index"><span itemprop="name">softwares</span></a>
+          <a href="/categories/tech/" itemprop="url" rel="index"><span itemprop="name">tech</span></a>
         </span>
           ，
         <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/softwares/Hexo/" itemprop="url" rel="index"><span itemprop="name">Hexo</span></a>
+          <a href="/categories/tech/Python/" itemprop="url" rel="index"><span itemprop="name">Python</span></a>
         </span>
     </span>
 
@@ -273,7 +291,7 @@
         <i class="far fa-file-word"></i>
       </span>
       <span class="post-meta-item-text">本文字数：</span>
-      <span>382</span>
+      <span>316</span>
     </span>
     <span class="post-meta-item" title="阅读时长">
       <span class="post-meta-item-icon">
@@ -290,25 +308,24 @@
     
     
     
-    <div class="post-body" itemprop="articleBody"><h1 id="自定义-404-页面"><a href="#自定义-404-页面" class="headerlink" title="自定义 404 页面"></a>自定义 404 页面</h1><p>首先，创建一个名为 <code>404</code> 的 post</p>
-<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo new <span class="number">404</span></span><br></pre></td></tr></table></figure>
+    <div class="post-body" itemprop="articleBody"><h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>Python 以其模块丰富而著称。但是，不同于 Java 开发中 Maven 使用 group Id、artifact Id 和 version 来唯一确定一个依赖。在实践中，绝大多数 Python 项目<strong>只</strong>通过模块名来区分模块。<code>pip install &lt;module&gt;</code>，一个模块就装好了。那么模块的版本呢？大部分项目的 requirements 都不会提及版本，造成后来者跑项目时不停地报错。</p>
+<p>因此，弱化版本号的概念无疑<strong>弊大于利</strong>。如何解决？使用 venv（虚拟环境）。</p>
+<p>如果直接使用 <code>pip install</code> ，那么所有 Python 项目共用这些模块，会产生版本会兼容。venv 将原始的 Python 环境拷贝一份。虚拟环境的运行只依赖于拷贝后的 Python，安装的模块也只会存在于该虚拟环境中。多个虚拟环境间相互隔离。</p>
+<h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><p>1️⃣创建  venv :</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python <span class="literal">-m</span> venv C:\Users\Elnino\Desktop\test\venv</span><br></pre></td></tr></table></figure>
 
-<p>在对应的 md 文件中，我们可以自定义 404 页面。由于 Hexo 框架的特性，我们可以编写 JS 脚本，让页面动起来。</p>
-<p>这里给出<a href="/404" target="_blank">我的 404 页面</a>。可以看到，上面有一个倒计时。当倒计时为 0 时，会自动跳转到首页。当然，用户也可以手动点击，从而返回首页。</p>
-<p>下面是对应的代码，直接放在 md 文件中即可：</p>
-<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">script</span> <span class="attr">src</span>=<span class="string">&quot;./../js/jquery-3.3.1.min.js&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">div</span> <span class="attr">align</span>=<span class="string">&quot;center&quot;</span>&gt;</span>您正在访问一个不存在的地址🤔<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">div</span> <span class="attr">align</span>=<span class="string">&quot;center&quot;</span>&gt;</span>系统会在 <span class="tag">&lt;<span class="name">span</span> <span class="attr">id</span>=<span class="string">&quot;seconds&quot;</span>&gt;</span>10<span class="tag">&lt;/<span class="name">span</span>&gt;</span> 秒后自动跳转到首页,<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">div</span> <span class="attr">align</span>=<span class="string">&quot;center&quot;</span>&gt;</span> 您也可以点此 <span class="tag">&lt;<span class="name">a</span> <span class="attr">target</span>=<span class="string">&quot;_self&quot;</span> <span class="attr">href</span>=<span class="string">&quot;/&quot;</span> &gt;</span>链接<span class="tag">&lt;/<span class="name">a</span>&gt;</span>, 手动跳转!<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">script</span>&gt;</span><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">    $(<span class="keyword">function</span> (<span class="params"></span>) &#123;</span></span><br><span class="line"><span class="language-javascript">        <span class="built_in">setInterval</span>(<span class="keyword">function</span> (<span class="params"></span>) &#123;</span></span><br><span class="line"><span class="language-javascript">            <span class="keyword">var</span> seconds = $(<span class="string">&quot;#seconds&quot;</span>).<span class="title function_">text</span>();</span></span><br><span class="line"><span class="language-javascript">            $(<span class="string">&quot;#seconds&quot;</span>).<span class="title function_">text</span>(--seconds);</span></span><br><span class="line"><span class="language-javascript">            <span class="keyword">if</span> (seconds == <span class="number">0</span>) &#123;</span></span><br><span class="line"><span class="language-javascript">                location.<span class="property">href</span> = <span class="string">&quot;/&quot;</span>;</span></span><br><span class="line"><span class="language-javascript">            &#125;</span></span><br><span class="line"><span class="language-javascript">        &#125;, <span class="number">1000</span>);</span></span><br><span class="line"><span class="language-javascript">    &#125;);</span></span><br><span class="line"><span class="language-javascript"></span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p><code>C:\Users\Elnino\Desktop\test\venv</code> 目录就是该虚拟环境</p>
+<span id="more"></span>
 
-<p>我选择将 jQuery 代码放在本地，这样页面响应更快。</p>
-<p>jQuery 在这里只是用于获取 DOM 对象，因此也完全可以用原生 JS 函数来写。</p>
-<h1 id="如何让网站跳转到自定义页面？"><a href="#如何让网站跳转到自定义页面？" class="headerlink" title="如何让网站跳转到自定义页面？"></a>如何让网站跳转到自定义页面？</h1><span id="more"></span>
+<p>2️⃣启动：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">venv\Scripts\activate</span><br></pre></td></tr></table></figure>
 
-<p>注意：以下方法仅限于 Github Pages，其他平台的方式可能不同。</p>
-<p>在<code>front-matter</code>中添加如下内容，Github Pages 就能设置该页面为 404 页面</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">permalink:</span> <span class="string">/404.html</span></span><br></pre></td></tr></table></figure>
+<p>如果提示符前出现 <code>(venv)</code>，就说明启动成功，在里面可以随便玩了。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(venv) C:\Users\Elnino\Desktop\test&gt;pip list</span><br></pre></td></tr></table></figure>
 
-<p>不妨随机访问一个不存在的网页？看看效果如何：▶ <a href="/hsfh/40u235u/jasdlafn" target="_blank">点我</a></p>
-<h1 id="参考文章"><a href="#参考文章" class="headerlink" title="参考文章"></a>参考文章</h1><p><a target="_blank" rel="noopener" href="https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-custom-404-page-for-your-github-pages-site">Creating a custom 404 page for your GitHub Pages site</a></p>
-<p><a target="_blank" rel="noopener" href="https://theme-next.js.org/docs/theme-settings/custom-pages.html#Custom-404-Page">theme-next: custom-pages</a></p>
+<p>3️⃣退出：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">(venv) C:\Users\Elnino\Desktop\test&gt;deactivate</span><br><span class="line">C:\Users\Elnino\Desktop\test&gt;</span><br></pre></td></tr></table></figure>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://docs.python.org/3/library/venv.html">venv — Creation of virtual environments</a></p>
 
     </div>
 
@@ -326,7 +343,7 @@
   </li>
   <li class="post-copyright-link">
       <strong>本文链接：</strong>
-      <a href="https://el-nino2020.github.io/2023/07/04/Hexo%E8%87%AA%E5%AE%9A%E4%B9%89404%E9%A1%B5%E9%9D%A2/" title="Hexo自定义404页面">https://el-nino2020.github.io/2023/07/04/Hexo自定义404页面/</a>
+      <a href="https://el-nino2020.github.io/2023/12/20/Python-venv-use/" title="Python venv 使用">https://el-nino2020.github.io/2023/12/20/Python-venv-use/</a>
   </li>
   <li class="post-copyright-license">
       <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
@@ -335,7 +352,8 @@
 </div>
 
           <div class="post-tags">
-              <a href="/tags/Hexo/" rel="tag"><i class="fa fa-tag"></i> Hexo</a>
+              <a href="/tags/Python/" rel="tag"><i class="fa fa-tag"></i> Python</a>
+              <a href="/tags/venv/" rel="tag"><i class="fa fa-tag"></i> venv</a>
           </div>
 
         
@@ -350,10 +368,13 @@
 
           <div class="post-nav">
             <div class="post-nav-item">
+                <a href="/2023/11/06/%E7%AE%97%E6%B3%95%E9%A2%98005%EF%BC%9A%E5%B9%B3%E8%A1%A1%E5%AD%90%E5%BA%8F%E5%88%97%E7%9A%84%E6%9C%80%E5%A4%A7%E5%92%8C/" rel="prev" title="算法题005：平衡子序列的最大和">
+                  <i class="fa fa-chevron-left"></i> 算法题005：平衡子序列的最大和
+                </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2023/07/05/Spring-MVC-%E4%BD%BF%E7%94%A8-Validation-%E6%B3%A8%E8%A7%A3%E5%AE%9E%E7%8E%B0%E8%AF%B7%E6%B1%82%E5%8F%82%E6%95%B0%E8%87%AA%E5%8A%A8%E6%A0%A1%E9%AA%8C/" rel="next" title="Spring MVC 使用 Validation 注解实现请求参数自动校验">
-                  Spring MVC 使用 Validation 注解实现请求参数自动校验 <i class="fa fa-chevron-right"></i>
+                <a href="/2024/01/01/VS-Code-Remote-SSH-Login-By-Key/" rel="next" title="VS Code Remote SSH 密钥登录">
+                  VS Code Remote SSH 密钥登录 <i class="fa fa-chevron-right"></i>
                 </a>
             </div>
           </div>
