@@ -210,6 +210,213 @@
       </tags>
   </entry>
   <entry>
+    <title>Azure Pipelines 架构解析</title>
+    <url>/2023/10/06/Azure-Pipelines-Architecture/</url>
+    <content><![CDATA[<h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h1><p>Azure Pipelines 是 Azure DevOps（SaaS 平台）的一个组件，是一个自动化 CI&#x2F;CD 的“流水线”。类似的技术有<a href="https://github.com/features/actions">GitHub Actions</a> 和 <a href="https://www.jenkins.io/">Jenkins</a>。</p>
+<p>作为使用者，我们只需要在 YAML 中定义各个任务，触发 Pipeline，Azure Pipelines 就能帮我们自动执行这些任务。</p>
+<p>那么，任务是怎么被执行的呢？是否存在并行任务上限？我们怎样设计更高效地定义 YAML，从而让一次 Pipeline 更快地跑完呢？—— 本文将从任务调度的角度，解析 Azure Pipelines 的架构。在探讨的过程中，上述问题自然能得到解答。</p>
+<span id="more"></span>
+
+<h1 id="Azure-Pipelines-术语"><a href="#Azure-Pipelines-术语" class="headerlink" title="Azure Pipelines 术语"></a>Azure Pipelines 术语</h1><p><img src="/MarkDownImages/key-pipeline-concepts-overview-ca80c85c.png" alt="img"></p>
+<p><strong>对于 Azure Pipelines 的使用者</strong>，一个 YAML 文件唯一定义了一条 Pipeline 的运行逻辑：</p>
+<ul>
+<li>一条 Pipeline 可以包含多个 Stage</li>
+<li>一个 Stage 可以包含多个 Job</li>
+<li>一个 Job 可以包含多个 Step</li>
+<li>一个 Step 可以包含多个 task</li>
+</ul>
+<p><strong>对于 Azure Pipelines 本身</strong>，当一条 Pipeline 被触发，它需要调用计算资源，去执行 Pipeline 的逻辑。具体来说，会有一台机器（agent）负责执行一个 job。</p>
+<p>一个 job 只会在一台 agent 上跑，它不会被进一步地拆分。而一条 Pipeline 的所有 job 可能会分配给不同的 agent 去执行。</p>
+<p>这种分配是如何完成的呢？</p>
+<h1 id="Azure-Pipelines-任务调度"><a href="#Azure-Pipelines-任务调度" class="headerlink" title="Azure Pipelines 任务调度"></a>Azure Pipelines 任务调度</h1><p>Azure Pipelines 的任务调度是一种典型的分布式任务调度模型（类似的技术有<a href="http://www.quartz-scheduler.org/">QUARTZ</a> 和 <a href="https://github.com/xuxueli/xxl-job">xxl-job</a>）：</p>
+<ul>
+<li>Azure Pipelines 上有一个<strong>『任务队列』</strong>，里面存放着所有待运行的 <u>job</u>（既指任务调度模型中的 Job&#x2F;Task，又指 Pipeline 中的 job 术语）</li>
+<li>Agent 是 Worker，它会定时地查看<strong>『任务队列』</strong>中是否有 job 要运行。如果有，则某一台 Agent 会竞争获得执行该 Job 的权利，同时获得访问相应资源的权限。此时，它就可以开始执行这个 job 了。</li>
+</ul>
+<p>因此，一条 Pipeline 是这样执行的：</p>
+<ol>
+<li>触发 Pipeline。Azure Pipelines 解析 YAML，拆分为多个 Job，存入『任务队列』中。</li>
+<li>假如此时有空闲的 Agent，说明『任务队列』此时为空。那么，它监听到了任务队列中加入新 job 后，开始与其他 Agent（假如有的话）竞争执行该 job。<ul>
+<li>竞争成功，开始执行；</li>
+<li>竞争失败，继续监听；</li>
+</ul>
+</li>
+<li>假如此时没有空闲的 Agent，则说明『任务队列』之前已经有 job 了，或者没有 Agent 跑完自己之前领取的 job。那么这些新产生的 job 就会有序地等待 Agent 来执行。（job 按照 Pipeline 触发的时间来排队等待，因此是公平的）</li>
+</ol>
+<h1 id="Parallel-Jobs"><a href="#Parallel-Jobs" class="headerlink" title="Parallel Jobs"></a>Parallel Jobs</h1><p>任务调度框架意味着<strong>并行（parallel）</strong>。这也意味着，我们在定义 YAML 时，<strong>应该将没有依赖的 Steps 或 Tasks 提升为 Jobs，使得它们能够并行执行，缩短运行时间</strong>。</p>
+<blockquote>
+<p>在实习过程中，却鲜有人这样做，大家都用着默认的 Steps 级别，即使大部分 Agents 经常是空闲的。🤔</p>
+</blockquote>
+<p>那么，既然一个新 job 能否立刻执行取决于空闲 Agent 的存在，增加 Agent 的数量是否就能提高整体的吞吐量（单位时间内执行完成的 job 数量）呢？—— 很遗憾，并不是。</p>
+<p>微软毕竟要靠 Azure 盈利的，他们又提出了 『Parallel Jobs』这个概念，表示能并行执行的 job 上限。这个量是需要购买的。</p>
+<p>也就是说，如果想并行跑 job，我们不仅需要购买 Azure VM agents，还需要购买 Parallel Jobs。即使我们自己有很多台机器，也还是需要购买 Parallel Jobs。</p>
+<h1 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h1><ul>
+<li><a href="https://learn.microsoft.com/en-us/training/modules/explore-azure-pipelines/3-describe-azure-pipelines">Describe Azure Pipelines</a></li>
+<li><a href="https://learn.microsoft.com/en-us/training/modules/explore-azure-pipelines/4-understand-key-terms">Understand Azure Pipelines key terms</a></li>
+<li><a href="https://learn.microsoft.com/en-us/training/modules/manage-azure-pipeline-agents-pools/7-communicate-with-azure-pipelines">Communicate with Azure Pipelines</a></li>
+<li><a href="https://azure.microsoft.com/en-us/products/devops/pipelines#overview">Azure Pipelines 产品介绍</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents">Azure Pipelines agents</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>tech</category>
+        <category>Azure</category>
+      </categories>
+      <tags>
+        <tag>Azure</tag>
+        <tag>Azure Pipelines</tag>
+        <tag>架构</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>在 Docker 中部署 Nginx，并在局域网配置 SSL 证书</title>
+    <url>/2024/01/31/Docker-Nginx-SSL-Local-Network/</url>
+    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>在上一篇博文里，我成功搭建了 LANraragi 服务器，并且分享给了家庭局域网内的其他设备。但是，又产生了新的问题：</p>
+<ul>
+<li>LANraragi 不需要登录就能访问其中的漫画；</li>
+<li>就算 LANraragi 有登录的功能，用的也还是 HTTP 明文传输，相当于没有密码；</li>
+</ul>
+<p>这些问题的根源是：可以联网的手机、智能家居都和 LANraragi 服务器在一个局域网内，这些设备并不可信，可能有后门（“用户自愿传输隐私数据以改善服务”）。无论如何，上述问题亟需解决。</p>
+<p>解决方案 —— Nginx：</p>
+<ul>
+<li>使用 Nginx 自带的 basic authentication，只有输入账号密码才能访问 URL；</li>
+<li>利用 Nginx 的反向代理。只要给 Nginx 配置了 HTTPS，被代理的软件都可以使用加密传输；</li>
+</ul>
+<p>因此，重点在于 Nginx 的配置和 SSL 证书的配置。麻烦之处在于，我要给内网 IP 请求证书，并且这个 IP 没有对应的域名。这篇文章探讨了这些解决方案，同时也是我第一次接触 Nginx 和 SSL 证书的配置。</p>
+<span id="more"></span>
+
+<h1 id="Nginx-容器"><a href="#Nginx-容器" class="headerlink" title="Nginx 容器"></a>Nginx 容器</h1><h2 id="新的-Nginx-镜像"><a href="#新的-Nginx-镜像" class="headerlink" title="新的 Nginx 镜像"></a>新的 Nginx 镜像</h2><p>官方镜像只开放 80 端口，而 HTTPS 需要 443 端口。</p>
+<p>自己创建一个 <code>dockerfile</code>：</p>
+<figure class="highlight dockerfile"><table><tr><td class="code"><pre><span class="line"><span class="keyword">FROM</span> nginx:<span class="number">1.24</span></span><br><span class="line"><span class="keyword">EXPOSE</span> <span class="number">443</span></span><br></pre></td></tr></table></figure>
+
+<p>编译成镜像：</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">docker build -t elnino2024/nginx:1.24 .</span><br></pre></td></tr></table></figure>
+
+<h2 id="拿到默认配置文件"><a href="#拿到默认配置文件" class="headerlink" title="拿到默认配置文件"></a>拿到默认配置文件</h2><p>创建一个临时的容器，从里面复制 <code>nginx.conf</code></p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">docker run --name tmp-nginx-container -d elnino2024/nginx:1.24</span><br><span class="line">docker <span class="built_in">cp</span> tmp-nginx-container:/etc/nginx/nginx.conf /opt/nginx.conf</span><br><span class="line">docker <span class="built_in">rm</span> -f tmp-nginx-container</span><br></pre></td></tr></table></figure>
+
+<h2 id="Docker-Compose"><a href="#Docker-Compose" class="headerlink" title="Docker Compose"></a>Docker Compose</h2><figure class="highlight yaml"><table><tr><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&quot;3&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">nginx:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">elnino2024/nginx:1.24</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">nginx</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/nginx_ssl:/etc/nginx/ssl/:ro</span></span><br><span class="line">    <span class="attr">network_mode:</span> <span class="string">bridge</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">always</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">50443</span><span class="string">:443</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>除了配置文件，还要映射一个目录，存放 SSL 私钥和证书；</li>
+<li>网络模式要选桥接，不然访问不了其他容器；</li>
+<li>只映射了 <code>443</code> 端口，不准备开放 <code>80</code> 端口 ；</li>
+</ul>
+<h1 id="SSL-证书"><a href="#SSL-证书" class="headerlink" title="SSL 证书"></a>SSL 证书</h1><h2 id="创建-CA"><a href="#创建-CA" class="headerlink" title="创建 CA"></a>创建 CA</h2><p>创建 CA 密钥 <code>myCAPK.key</code> 和（自签名）证书 <code>myCACertificate.crt</code> </p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl req -x509 -sha256 -nodes -days 3650 -newkey rsa:4096 -keyout myCAPK.key -out myCACertificate.crt</span><br></pre></td></tr></table></figure>
+
+<p>用这个命令生成的私钥和证书可以直接作为 Nginx 的 SSL 配置。但是，如果一个新的服务器也需要配置 SSL 证书，那么我们就需要手动让客户端设备信任这个新的证书，很麻烦。</p>
+<p>如果把这个证书用作 CA 证书，那么只要设备信任了这个证书，使用 CA 签字的所有其他证书就自动地被信任了。因此，设备上只要手动添加一次 CA 证书。</p>
+<h2 id="查看证书信息"><a href="#查看证书信息" class="headerlink" title="查看证书信息"></a>查看证书信息</h2><figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl x509 -text -noout -<span class="keyword">in</span> myCACertificate.crt</span><br></pre></td></tr></table></figure>
+
+<h2 id="信任-CA"><a href="#信任-CA" class="headerlink" title="信任 CA"></a>信任 CA</h2><p>这个 CA 证书是我们自己创建的，系统是肯定不认的，我们需要安装到系统中。</p>
+<p>如果没有这一步，浏览器可以建立 HTTPS 连接，但会提示连接不安全。</p>
+<h3 id="Windows"><a href="#Windows" class="headerlink" title="Windows"></a>Windows</h3><p>控制面板 | internet 选项 | 内容 | 证书 </p>
+<p><img src="/MarkDownImages/image-20240131172736021.png" alt="image-20240131172736021"></p>
+<p>以根证书颁发机构的身份信任 CA</p>
+<p><img src="/MarkDownImages/image-20240131172831043.png" alt="image-20240131172831043"></p>
+<h3 id="Android"><a href="#Android" class="headerlink" title="Android"></a>Android</h3><p>不同系统安装证书的位置不一样，但基本的选项是一样的。这里以三星为例：</p>
+<p>要么选 『CA 证书』，要么选 『VPN 和 app 用户证书』。不要选『WLAN 证书』，这个没用。</p>
+<p><img src="/MarkDownImages/Screenshot_20240201_113254_Settings.png" alt="Screenshot_20240201_113254_Settings"></p>
+<h3 id="IOS"><a href="#IOS" class="headerlink" title="IOS"></a>IOS</h3><blockquote>
+<p>这里以 iPadOS 15.7 为例</p>
+</blockquote>
+<ol>
+<li><p>打开 email，将 CA 证书作为附件发给自己；</p>
+</li>
+<li><p>用 Safari 浏览器登录邮箱，点击附件，选择“下载描述文件”（此时弹出提示，进入设置界面确认安装）；</p>
+</li>
+<li><p>进入设置，选择“安装描述文件”，输入锁屏密码；</p>
+</li>
+<li><p>设置 | 通用 | 关于本机 | 证书信任设置：开启完全信任</p>
+<p> <img src="/MarkDownImages/IMG_2032.PNG" alt="IMG_2032"></p>
+</li>
+</ol>
+<hr>
+<p>根据苹果的<a href="https://support.apple.com/en-us/102028">新政策</a>，服务器证书不能超过 398 天，否则 SSL 连接出错（<code>NET::ERR_CERT_VALIDITY_TOO_LONG</code>）</p>
+<h2 id="创建服务器密钥"><a href="#创建服务器密钥" class="headerlink" title="创建服务器密钥"></a>创建服务器密钥</h2><figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl genrsa -out nginx_server.key 4096</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建服务器-CSR（证书签名请求）"><a href="#创建服务器-CSR（证书签名请求）" class="headerlink" title="创建服务器 CSR（证书签名请求）"></a>创建服务器 CSR（证书签名请求）</h2><p>创建 <code>openssl.cnf</code>，内容如下：</p>
+<figure class="highlight properties"><table><tr><td class="code"><pre><span class="line"><span class="attr">authorityKeyIdentifier</span>=<span class="string">keyid,issuer</span></span><br><span class="line"><span class="attr">basicConstraints</span>=<span class="string">CA:FALSE</span></span><br><span class="line"><span class="attr">subjectAltName</span> = <span class="string">@alt_names</span></span><br><span class="line"><span class="attr">[alt_names]</span></span><br><span class="line"><span class="comment"># 虚拟机</span></span><br><span class="line"><span class="attr">DNS.1</span> = <span class="string">CentOS100</span></span><br><span class="line"><span class="attr">IP.1</span> = <span class="string">192.168.169.132</span></span><br><span class="line"><span class="comment"># 主机</span></span><br><span class="line"><span class="attr">IP.2</span> = <span class="string">192.168.0.105</span></span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>这个文件的配置其实很复杂，但是对于这个案例，只需要这几个配置项。</p>
+</blockquote>
+<ul>
+<li><code>DNS.x</code> 对应主机名&#x2F;域名；</li>
+<li><code>IP.x</code> 对应 IP 地址；</li>
+</ul>
+<blockquote>
+<p> <code>x</code> 都是正整数</p>
+</blockquote>
+<p>这里使用配置文件的唯一目的：在 CA 签字时，将服务器的域名和 IP 与证书绑定，表示这个证书确实属于该服务器，而不是别人伪装的。如果没有这个配置，浏览器会提示错误：<code>NET::ERR_CERT_COMMON_NAME_INVALID</code>。</p>
+<p>使用如下命令：</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl req -new -key nginx_server.key -out nginx_server.csr</span><br></pre></td></tr></table></figure>
+
+<h2 id="CA-签字"><a href="#CA-签字" class="headerlink" title="CA 签字"></a>CA 签字</h2><figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl x509 -req -extfile openssl.cnf  -<span class="keyword">in</span> nginx_server.csr -CA /opt/MyOwnCA/myCACertificate.crt -CAkey /opt/MyOwnCA/myCAPK.key -CAcreateserial -out nginx_server.crt -days 3650</span><br></pre></td></tr></table></figure>
+
+<p>签字完毕后，就有了最终需要的私钥 <code>nginx_server.key</code> 和证书 <code>nginx_server.crt</code>。</p>
+<h1 id="Nginx-配置"><a href="#Nginx-配置" class="headerlink" title="Nginx 配置"></a>Nginx 配置</h1><h2 id="SSL"><a href="#SSL" class="headerlink" title="SSL"></a>SSL</h2><figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">443</span> default_server ssl http2;</span><br><span class="line">    <span class="attribute">listen</span> [::]:<span class="number">443</span> ssl http2;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">ssl_certificate</span> /etc/nginx/ssl/nginx_server.crt;</span><br><span class="line">    <span class="attribute">ssl_certificate_key</span> /etc/nginx/ssl/nginx_server.key;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> /... &#123;</span><br><span class="line">        <span class="attribute">proxy_pass</span> ...;  </span><br><span class="line">		&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>这只是最基本的配置，实际有更多 SSL 的配置，但目前够用了。</p>
+</blockquote>
+<h2 id="Basic-Authentication"><a href="#Basic-Authentication" class="headerlink" title="Basic Authentication"></a>Basic Authentication</h2><p>1️⃣首先要创建用户名和密码：</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 没有该文件就先创建一个</span></span><br><span class="line"><span class="built_in">touch</span> /opt/docker/nginx_auth/.htpasswd-lanraragi</span><br><span class="line"><span class="comment"># 向这个配置文件里添加 alpha 用户</span></span><br><span class="line">htpasswd /opt/docker/nginx_auth/.htpasswd-lanraragi alpha</span><br></pre></td></tr></table></figure>
+
+<p>然后系统提示给 <code>alpha</code> 用户设置密码。要填加多个用户，用相同命令即可：</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">htpasswd /opt/docker/nginx_auth/.htpasswd-lanraragi beta</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>在 CentOS 中，<code>htpasswd </code> 命令属于 <code>httpd-tools</code> 。如果没有安装，系统会提示安装。</p>
+</blockquote>
+<hr>
+<p>2️⃣在 Nginx 中配置：</p>
+<figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="section">location</span> /api &#123;</span><br><span class="line">    <span class="attribute">auth_basic</span>           <span class="string">&quot;Administrator’s Area&quot;</span>;</span><br><span class="line">    <span class="attribute">auth_basic_user_file</span> /etc/nginx/.htpasswd; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>auth_basic</code> 在登录界面会提示用户；</li>
+<li><code>auth_basic_user_file</code> 指向之前创建的 <code>.htpasswd</code>；</li>
+</ul>
+<p>也可以全局启用，但在具体的路径里关闭认证：</p>
+<figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="attribute">auth_basic</span>           <span class="string">&quot;Administrator’s Area&quot;</span>;</span><br><span class="line">    <span class="attribute">auth_basic_user_file</span> conf/.htpasswd;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> /public/ &#123;</span><br><span class="line">      <span class="attribute">auth_basic</span> <span class="literal">off</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h1 id="例子：Lanraragi"><a href="#例子：Lanraragi" class="headerlink" title="例子：Lanraragi"></a>例子：Lanraragi</h1><p>回到最初的需求：反向代理 Lanraragi，并提供登录功能。</p>
+<p>Docker compose:</p>
+<figure class="highlight yaml"><table><tr><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&quot;3&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">nginx:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">elnino2024/nginx:1.24</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">nginx-lanraragi</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/docker/nginx_conf/nginx-lanraragi.conf:/etc/nginx/nginx.conf:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/docker/nginx_ssl:/etc/nginx/ssl/:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/docker/nginx_auth:/etc/nginx/auth/:ro</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">43000</span><span class="string">:443</span></span><br><span class="line">  <span class="attr">lanraragi:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">difegue/lanraragi:v.0.9.0</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">lanraragi</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/mnt/hgfs/doujinshiArchives:/home/koyomi/lanraragi/content:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">lanraragi-database:/home/koyomi/lanraragi/database</span></span><br><span class="line">    <span class="attr">depends_on:</span> </span><br><span class="line">      <span class="bullet">-</span> <span class="string">nginx</span></span><br><span class="line">  </span><br><span class="line"><span class="attr">volumes:</span></span><br><span class="line">  <span class="attr">lanraragi-database:</span></span><br></pre></td></tr></table></figure>
+
+<p>Nginx 配置：</p>
+<figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="attribute">user</span>  nginx;</span><br><span class="line"><span class="attribute">worker_processes</span>  auto;</span><br><span class="line"></span><br><span class="line"><span class="attribute">error_log</span>  /var/log/nginx/<span class="literal">error</span>.log <span class="literal">notice</span>;</span><br><span class="line"><span class="attribute">pid</span>        /var/run/nginx.pid;</span><br><span class="line"></span><br><span class="line"><span class="section">events</span> &#123;</span><br><span class="line">    <span class="attribute">worker_connections</span>  <span class="number">1024</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="section">http</span> &#123;</span><br><span class="line">    <span class="attribute">include</span>       /etc/nginx/mime.types;</span><br><span class="line">    <span class="attribute">default_type</span>  application/octet-stream;</span><br><span class="line">    </span><br><span class="line">    <span class="attribute">log_format</span>  main  <span class="string">&#x27;<span class="variable">$remote_addr</span> - <span class="variable">$remote_user</span> [<span class="variable">$time_local</span>] &quot;<span class="variable">$request</span>&quot; &#x27;</span></span><br><span class="line">                      <span class="string">&#x27;<span class="variable">$status</span> <span class="variable">$body_bytes_sent</span> &quot;<span class="variable">$http_referer</span>&quot; &#x27;</span></span><br><span class="line">                      <span class="string">&#x27;&quot;<span class="variable">$http_user_agent</span>&quot; &quot;<span class="variable">$http_x_forwarded_for</span>&quot;&#x27;</span>;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">access_log</span>  /var/log/nginx/access.log  main;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">sendfile</span>        <span class="literal">on</span>;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">keepalive_timeout</span>  <span class="number">65</span>;</span><br><span class="line"></span><br><span class="line">    <span class="section">server</span> &#123;</span><br><span class="line">        <span class="attribute">listen</span> <span class="number">443</span> default_server ssl http2;</span><br><span class="line">        <span class="attribute">listen</span> [::]:<span class="number">443</span> ssl http2;</span><br><span class="line"></span><br><span class="line">        <span class="attribute">ssl_certificate</span> /etc/nginx/ssl/nginx_server.crt;</span><br><span class="line">        <span class="attribute">ssl_certificate_key</span> /etc/nginx/ssl/nginx_server.key;</span><br><span class="line"></span><br><span class="line">        <span class="attribute">auth_basic</span>           <span class="string">&quot;Login to view any content&quot;</span>;</span><br><span class="line">        <span class="attribute">auth_basic_user_file</span> /etc/nginx/auth/.htpasswd-lanraragi;</span><br><span class="line"></span><br><span class="line">        <span class="section">location</span> / &#123;</span><br><span class="line">            <span class="comment"># 在同一个网络中，直接通过服务名访问</span></span><br><span class="line">            <span class="comment"># lanraragi 也不需要映射任何端口</span></span><br><span class="line">            <span class="attribute">proxy_pass</span> http://lanraragi:3000;</span><br><span class="line">            <span class="attribute">proxy_http_version</span> <span class="number">1</span>.<span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">            <span class="attribute">proxy_set_header</span> Upgrade <span class="variable">$http_upgrade</span>;</span><br><span class="line">            <span class="attribute">http2_push_preload</span> <span class="literal">on</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Lanraragi 本身的路由策略没法改，这意味着必须把 <code>/</code> 原封不动地映射到 Lanraragi 的 URI。也就是说，需要给 Lanraragi 一个单独的 Nginx 实例。</p>
+<p>从计算资源的角度，问题并不大，因为一个 Nginx 实例占用不到 20 MB 的内存。</p>
+<p>如果给每个现有的软件都用一个 Nginx ，那么这些 Nginx 实例可以共享一个 SSL 证书。毕竟访问 Linux 主机时，是通过端口区分 Nginx，而证书是和 IP &#x2F; 域名 绑定的。尽管可以这么做，我不太清楚这是不是最佳实践。但在家庭局域网的场景中，这显然够用了。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ul>
+<li>ChatGPT</li>
+<li><a href="https://mindsers.blog/en/post/https-using-nginx-certbot-docker/">HTTPS using Nginx and Let’s encrypt in Docker</a></li>
+<li><a href="https://www.baeldung.com/openssl-self-signed-cert">Creating a Self-Signed Certificate With OpenSSL</a></li>
+<li><a href="https://hub.docker.com/_/nginx">Nginx Docker hub</a></li>
+<li><a href="https://www.tangyuecan.com/2021/12/17/%E5%B1%80%E5%9F%9F%E7%BD%91%E5%86%85%E6%90%AD%E5%BB%BA%E6%B5%8F%E8%A7%88%E5%99%A8%E5%8F%AF%E4%BF%A1%E4%BB%BB%E7%9A%84ssl%E8%AF%81%E4%B9%A6/">局域网内搭建浏览器可信任的SSL证书</a></li>
+<li><a href="https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-nginx-in-ubuntu-16-04">How To Create a Self-Signed SSL Certificate for Nginx in Ubuntu 16.04</a></li>
+<li><a href="https://stackoverflow.com/questions/10175812/how-to-generate-a-self-signed-ssl-certificate-using-openssl">How to generate a self-signed SSL certificate using OpenSSL?</a></li>
+<li><a href="https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/">Restricting Access with HTTP Basic Authentication</a></li>
+<li><a href="https://support.hcltechsw.com/csm?id=kb_article&sysparm_article=KB0098768">在iOS设备上安装根证书(CA)</a></li>
+<li><a href="https://discussions.apple.com/thread/253667401?sortBy=best">Enabling self-signed certificates in iOS 15</a></li>
+<li><a href="https://support.apple.com/en-us/102028">Apple: About upcoming limits on trusted certificates</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>tech</category>
+        <category>Docker</category>
+      </categories>
+      <tags>
+        <tag>Docker</tag>
+        <tag>Nginx</tag>
+        <tag>SSL</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>算法题005：平衡子序列的最大和</title>
     <url>/2023/11/06/Algorithm-Problem-005-maximum-balanced-subsequence-sum/</url>
     <content><![CDATA[<h1 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h1><blockquote>
@@ -293,65 +500,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Azure Pipelines 架构解析</title>
-    <url>/2023/10/06/Azure-Pipelines-Architecture/</url>
-    <content><![CDATA[<h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h1><p>Azure Pipelines 是 Azure DevOps（SaaS 平台）的一个组件，是一个自动化 CI&#x2F;CD 的“流水线”。类似的技术有<a href="https://github.com/features/actions">GitHub Actions</a> 和 <a href="https://www.jenkins.io/">Jenkins</a>。</p>
-<p>作为使用者，我们只需要在 YAML 中定义各个任务，触发 Pipeline，Azure Pipelines 就能帮我们自动执行这些任务。</p>
-<p>那么，任务是怎么被执行的呢？是否存在并行任务上限？我们怎样设计更高效地定义 YAML，从而让一次 Pipeline 更快地跑完呢？—— 本文将从任务调度的角度，解析 Azure Pipelines 的架构。在探讨的过程中，上述问题自然能得到解答。</p>
-<span id="more"></span>
-
-<h1 id="Azure-Pipelines-术语"><a href="#Azure-Pipelines-术语" class="headerlink" title="Azure Pipelines 术语"></a>Azure Pipelines 术语</h1><p><img src="/MarkDownImages/key-pipeline-concepts-overview-ca80c85c.png" alt="img"></p>
-<p><strong>对于 Azure Pipelines 的使用者</strong>，一个 YAML 文件唯一定义了一条 Pipeline 的运行逻辑：</p>
-<ul>
-<li>一条 Pipeline 可以包含多个 Stage</li>
-<li>一个 Stage 可以包含多个 Job</li>
-<li>一个 Job 可以包含多个 Step</li>
-<li>一个 Step 可以包含多个 task</li>
-</ul>
-<p><strong>对于 Azure Pipelines 本身</strong>，当一条 Pipeline 被触发，它需要调用计算资源，去执行 Pipeline 的逻辑。具体来说，会有一台机器（agent）负责执行一个 job。</p>
-<p>一个 job 只会在一台 agent 上跑，它不会被进一步地拆分。而一条 Pipeline 的所有 job 可能会分配给不同的 agent 去执行。</p>
-<p>这种分配是如何完成的呢？</p>
-<h1 id="Azure-Pipelines-任务调度"><a href="#Azure-Pipelines-任务调度" class="headerlink" title="Azure Pipelines 任务调度"></a>Azure Pipelines 任务调度</h1><p>Azure Pipelines 的任务调度是一种典型的分布式任务调度模型（类似的技术有<a href="http://www.quartz-scheduler.org/">QUARTZ</a> 和 <a href="https://github.com/xuxueli/xxl-job">xxl-job</a>）：</p>
-<ul>
-<li>Azure Pipelines 上有一个<strong>『任务队列』</strong>，里面存放着所有待运行的 <u>job</u>（既指任务调度模型中的 Job&#x2F;Task，又指 Pipeline 中的 job 术语）</li>
-<li>Agent 是 Worker，它会定时地查看<strong>『任务队列』</strong>中是否有 job 要运行。如果有，则某一台 Agent 会竞争获得执行该 Job 的权利，同时获得访问相应资源的权限。此时，它就可以开始执行这个 job 了。</li>
-</ul>
-<p>因此，一条 Pipeline 是这样执行的：</p>
-<ol>
-<li>触发 Pipeline。Azure Pipelines 解析 YAML，拆分为多个 Job，存入『任务队列』中。</li>
-<li>假如此时有空闲的 Agent，说明『任务队列』此时为空。那么，它监听到了任务队列中加入新 job 后，开始与其他 Agent（假如有的话）竞争执行该 job。<ul>
-<li>竞争成功，开始执行；</li>
-<li>竞争失败，继续监听；</li>
-</ul>
-</li>
-<li>假如此时没有空闲的 Agent，则说明『任务队列』之前已经有 job 了，或者没有 Agent 跑完自己之前领取的 job。那么这些新产生的 job 就会有序地等待 Agent 来执行。（job 按照 Pipeline 触发的时间来排队等待，因此是公平的）</li>
-</ol>
-<h1 id="Parallel-Jobs"><a href="#Parallel-Jobs" class="headerlink" title="Parallel Jobs"></a>Parallel Jobs</h1><p>任务调度框架意味着<strong>并行（parallel）</strong>。这也意味着，我们在定义 YAML 时，<strong>应该将没有依赖的 Steps 或 Tasks 提升为 Jobs，使得它们能够并行执行，缩短运行时间</strong>。</p>
-<blockquote>
-<p>在实习过程中，却鲜有人这样做，大家都用着默认的 Steps 级别，即使大部分 Agents 经常是空闲的。🤔</p>
-</blockquote>
-<p>那么，既然一个新 job 能否立刻执行取决于空闲 Agent 的存在，增加 Agent 的数量是否就能提高整体的吞吐量（单位时间内执行完成的 job 数量）呢？—— 很遗憾，并不是。</p>
-<p>微软毕竟要靠 Azure 盈利的，他们又提出了 『Parallel Jobs』这个概念，表示能并行执行的 job 上限。这个量是需要购买的。</p>
-<p>也就是说，如果想并行跑 job，我们不仅需要购买 Azure VM agents，还需要购买 Parallel Jobs。即使我们自己有很多台机器，也还是需要购买 Parallel Jobs。</p>
-<h1 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h1><ul>
-<li><a href="https://learn.microsoft.com/en-us/training/modules/explore-azure-pipelines/3-describe-azure-pipelines">Describe Azure Pipelines</a></li>
-<li><a href="https://learn.microsoft.com/en-us/training/modules/explore-azure-pipelines/4-understand-key-terms">Understand Azure Pipelines key terms</a></li>
-<li><a href="https://learn.microsoft.com/en-us/training/modules/manage-azure-pipeline-agents-pools/7-communicate-with-azure-pipelines">Communicate with Azure Pipelines</a></li>
-<li><a href="https://azure.microsoft.com/en-us/products/devops/pipelines#overview">Azure Pipelines 产品介绍</a></li>
-<li><a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents">Azure Pipelines agents</a></li>
-</ul>
-]]></content>
-      <categories>
-        <category>tech</category>
-        <category>Azure</category>
-      </categories>
-      <tags>
-        <tag>Azure</tag>
-        <tag>Azure Pipelines</tag>
-        <tag>架构</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>算法题004：参加会议的最多员工数</title>
     <url>/2023/11/01/Algorithm-Problem-004-maximum-employees-to-be-invited-to-a-meeting/</url>
     <content><![CDATA[<h1 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h1><blockquote>
@@ -421,140 +569,6 @@
       </tags>
   </entry>
   <entry>
-    <title>在 Docker 中部署 Nginx，并在局域网配置 SSL 证书</title>
-    <url>/2024/01/31/Docker-Nginx-SSL-Local-Network/</url>
-    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>在上一篇博文里，我成功搭建了 LANraragi 服务器，并且分享给了家庭局域网内的其他设备。但是，又产生了新的问题：</p>
-<ul>
-<li>LANraragi 不需要登录就能访问其中的漫画；</li>
-<li>就算 LANraragi 有登录的功能，用的也还是 HTTP 明文传输，相当于没有密码；</li>
-</ul>
-<p>这些问题的根源是：可以联网的手机、智能家居都和 LANraragi 服务器在一个局域网内，这些设备并不可信，可能有后门（“用户自愿传输隐私数据以改善服务”）。无论如何，上述问题亟需解决。</p>
-<p>解决方案 —— Nginx：</p>
-<ul>
-<li>使用 Nginx 自带的 basic authentication，只有输入账号密码才能访问 URL；</li>
-<li>利用 Nginx 的反向代理。只要给 Nginx 配置了 HTTPS，被代理的软件都可以使用加密传输；</li>
-</ul>
-<p>因此，重点在于 Nginx 的配置和 SSL 证书的配置。麻烦之处在于，我要给内网 IP 请求证书，并且这个 IP 没有对应的域名。这篇文章探讨了这些解决方案，同时也是我第一次接触 Nginx 和 SSL 证书的配置。</p>
-<span id="more"></span>
-
-<h1 id="Nginx-容器"><a href="#Nginx-容器" class="headerlink" title="Nginx 容器"></a>Nginx 容器</h1><h2 id="新的-Nginx-镜像"><a href="#新的-Nginx-镜像" class="headerlink" title="新的 Nginx 镜像"></a>新的 Nginx 镜像</h2><p>官方镜像只开放 80 端口，而 HTTPS 需要 443 端口。</p>
-<p>自己创建一个 <code>dockerfile</code>：</p>
-<figure class="highlight dockerfile"><table><tr><td class="code"><pre><span class="line"><span class="keyword">FROM</span> nginx:<span class="number">1.24</span></span><br><span class="line"><span class="keyword">EXPOSE</span> <span class="number">443</span></span><br></pre></td></tr></table></figure>
-
-<p>编译成镜像：</p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">docker build -t elnino2024/nginx:1.24 .</span><br></pre></td></tr></table></figure>
-
-<h2 id="拿到默认配置文件"><a href="#拿到默认配置文件" class="headerlink" title="拿到默认配置文件"></a>拿到默认配置文件</h2><p>创建一个临时的容器，从里面复制 <code>nginx.conf</code></p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">docker run --name tmp-nginx-container -d elnino2024/nginx:1.24</span><br><span class="line">docker <span class="built_in">cp</span> tmp-nginx-container:/etc/nginx/nginx.conf /opt/nginx.conf</span><br><span class="line">docker <span class="built_in">rm</span> -f tmp-nginx-container</span><br></pre></td></tr></table></figure>
-
-<h2 id="Docker-Compose"><a href="#Docker-Compose" class="headerlink" title="Docker Compose"></a>Docker Compose</h2><figure class="highlight yaml"><table><tr><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&quot;3&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">nginx:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">elnino2024/nginx:1.24</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">nginx</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/nginx_ssl:/etc/nginx/ssl/:ro</span></span><br><span class="line">    <span class="attr">network_mode:</span> <span class="string">bridge</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">always</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">50443</span><span class="string">:443</span></span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>除了配置文件，还要映射一个目录，存放 SSL 私钥和证书；</li>
-<li>网络模式要选桥接，不然访问不了其他容器；</li>
-<li>只映射了 <code>443</code> 端口，不准备开放 <code>80</code> 端口 ；</li>
-</ul>
-<h1 id="SSL-证书"><a href="#SSL-证书" class="headerlink" title="SSL 证书"></a>SSL 证书</h1><h2 id="创建-CA"><a href="#创建-CA" class="headerlink" title="创建 CA"></a>创建 CA</h2><p>创建 CA 密钥 <code>myCAPK.key</code> 和（自签名）证书 <code>myCACertificate.crt</code> </p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl req -x509 -sha256 -nodes -days 3650 -newkey rsa:4096 -keyout myCAPK.key -out myCACertificate.crt</span><br></pre></td></tr></table></figure>
-
-<p>用这个命令生成的私钥和证书可以直接作为 Nginx 的 SSL 配置。但是，如果一个新的服务器也需要配置 SSL 证书，那么我们就需要手动让客户端设备信任这个新的证书，很麻烦。</p>
-<p>如果把这个证书用作 CA 证书，那么只要设备信任了这个证书，使用 CA 签字的所有其他证书就自动地被信任了。因此，设备上只要手动添加一次 CA 证书。</p>
-<h2 id="查看证书信息"><a href="#查看证书信息" class="headerlink" title="查看证书信息"></a>查看证书信息</h2><figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl x509 -text -noout -<span class="keyword">in</span> myCACertificate.crt</span><br></pre></td></tr></table></figure>
-
-<h2 id="信任-CA"><a href="#信任-CA" class="headerlink" title="信任 CA"></a>信任 CA</h2><p>这个 CA 证书是我们自己创建的，系统是肯定不认的，我们需要安装到系统中。</p>
-<p>如果没有这一步，浏览器可以建立 HTTPS 连接，但会提示连接不安全。</p>
-<h3 id="Windows"><a href="#Windows" class="headerlink" title="Windows"></a>Windows</h3><p>控制面板 | internet 选项 | 内容 | 证书 </p>
-<p><img src="/MarkDownImages/image-20240131172736021.png" alt="image-20240131172736021"></p>
-<p>以根证书颁发机构的身份信任 CA</p>
-<p><img src="/MarkDownImages/image-20240131172831043.png" alt="image-20240131172831043"></p>
-<h3 id="Android"><a href="#Android" class="headerlink" title="Android"></a>Android</h3><p>不同系统安装证书的位置不一样，但基本的选项是一样的。这里以三星为例：</p>
-<p>要么选 『CA 证书』，要么选 『VPN 和 app 用户证书』。不要选『WLAN 证书』，这个没用。</p>
-<p><img src="/MarkDownImages/Screenshot_20240201_113254_Settings.png" alt="Screenshot_20240201_113254_Settings"></p>
-<h3 id="IOS"><a href="#IOS" class="headerlink" title="IOS"></a>IOS</h3><p>这个不会搞。。。</p>
-<blockquote>
-<p> 官方文档：<a href="https://support.apple.com/en-hk/102390">https://support.apple.com/en-hk/102390</a></p>
-<p>Apple Configurator 要求 iPadOS 16，我不想升级，就不弄了；另外，管理员帐户好像没法注册？</p>
-</blockquote>
-<h2 id="创建服务器密钥"><a href="#创建服务器密钥" class="headerlink" title="创建服务器密钥"></a>创建服务器密钥</h2><figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl genrsa -out nginx_server.key 4096</span><br></pre></td></tr></table></figure>
-
-<h2 id="创建服务器-CSR（证书签名请求）"><a href="#创建服务器-CSR（证书签名请求）" class="headerlink" title="创建服务器 CSR（证书签名请求）"></a>创建服务器 CSR（证书签名请求）</h2><p>创建 <code>openssl.cnf</code>，内容如下：</p>
-<figure class="highlight properties"><table><tr><td class="code"><pre><span class="line"><span class="attr">authorityKeyIdentifier</span>=<span class="string">keyid,issuer</span></span><br><span class="line"><span class="attr">basicConstraints</span>=<span class="string">CA:FALSE</span></span><br><span class="line"><span class="attr">subjectAltName</span> = <span class="string">@alt_names</span></span><br><span class="line"><span class="attr">[alt_names]</span></span><br><span class="line"><span class="comment"># 虚拟机</span></span><br><span class="line"><span class="attr">DNS.1</span> = <span class="string">CentOS100</span></span><br><span class="line"><span class="attr">IP.1</span> = <span class="string">192.168.169.132</span></span><br><span class="line"><span class="comment"># 主机</span></span><br><span class="line"><span class="attr">IP.2</span> = <span class="string">192.168.0.105</span></span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>这个文件的配置其实很复杂，但是对于这个案例，只需要这几个配置项。</p>
-</blockquote>
-<ul>
-<li><code>DNS.x</code> 对应主机名&#x2F;域名；</li>
-<li><code>IP.x</code> 对应 IP 地址；</li>
-</ul>
-<blockquote>
-<p> <code>x</code> 都是正整数</p>
-</blockquote>
-<p>这里使用配置文件的唯一目的：在 CA 签字时，将服务器的域名和 IP 与证书绑定，表示这个证书确实属于该服务器，而不是别人伪装的。如果没有这个配置，浏览器会提示错误：<code>NET::ERR_CERT_COMMON_NAME_INVALID</code>。</p>
-<p>使用如下命令：</p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl req -new -key nginx_server.key -out nginx_server.csr</span><br></pre></td></tr></table></figure>
-
-<h2 id="CA-签字"><a href="#CA-签字" class="headerlink" title="CA 签字"></a>CA 签字</h2><figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl x509 -req -extfile openssl.cnf  -<span class="keyword">in</span> nginx_server.csr -CA /opt/MyOwnCA/myCACertificate.crt -CAkey /opt/MyOwnCA/myCAPK.key -CAcreateserial -out nginx_server.crt -days 3650</span><br></pre></td></tr></table></figure>
-
-<p>签字完毕后，就有了最终需要的私钥 <code>nginx_server.key</code> 和证书 <code>nginx_server.crt</code>。</p>
-<h1 id="Nginx-配置"><a href="#Nginx-配置" class="headerlink" title="Nginx 配置"></a>Nginx 配置</h1><h2 id="SSL"><a href="#SSL" class="headerlink" title="SSL"></a>SSL</h2><figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">443</span> default_server ssl http2;</span><br><span class="line">    <span class="attribute">listen</span> [::]:<span class="number">443</span> ssl http2;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">ssl_certificate</span> /etc/nginx/ssl/nginx_server.crt;</span><br><span class="line">    <span class="attribute">ssl_certificate_key</span> /etc/nginx/ssl/nginx_server.key;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> /... &#123;</span><br><span class="line">        <span class="attribute">proxy_pass</span> ...;  </span><br><span class="line">		&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>这只是最基本的配置，实际有更多 SSL 的配置，但目前够用了。</p>
-</blockquote>
-<h2 id="Basic-Authentication"><a href="#Basic-Authentication" class="headerlink" title="Basic Authentication"></a>Basic Authentication</h2><p>1️⃣首先要创建用户名和密码：</p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 没有该文件就先创建一个</span></span><br><span class="line"><span class="built_in">touch</span> /opt/docker/nginx_auth/.htpasswd-lanraragi</span><br><span class="line"><span class="comment"># 向这个配置文件里添加 alpha 用户</span></span><br><span class="line">htpasswd /opt/docker/nginx_auth/.htpasswd-lanraragi alpha</span><br></pre></td></tr></table></figure>
-
-<p>然后系统提示给 <code>alpha</code> 用户设置密码。要填加多个用户，用相同命令即可：</p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">htpasswd /opt/docker/nginx_auth/.htpasswd-lanraragi beta</span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>在 CentOS 中，<code>htpasswd </code> 命令属于 <code>httpd-tools</code> 。如果没有安装，系统会提示安装。</p>
-</blockquote>
-<hr>
-<p>2️⃣在 Nginx 中配置：</p>
-<figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="section">location</span> /api &#123;</span><br><span class="line">    <span class="attribute">auth_basic</span>           <span class="string">&quot;Administrator’s Area&quot;</span>;</span><br><span class="line">    <span class="attribute">auth_basic_user_file</span> /etc/nginx/.htpasswd; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><code>auth_basic</code> 在登录界面会提示用户；</li>
-<li><code>auth_basic_user_file</code> 指向之前创建的 <code>.htpasswd</code>；</li>
-</ul>
-<p>也可以全局启用，但在具体的路径里关闭认证：</p>
-<figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="attribute">auth_basic</span>           <span class="string">&quot;Administrator’s Area&quot;</span>;</span><br><span class="line">    <span class="attribute">auth_basic_user_file</span> conf/.htpasswd;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> /public/ &#123;</span><br><span class="line">      <span class="attribute">auth_basic</span> <span class="literal">off</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-
-<h1 id="例子：Lanraragi"><a href="#例子：Lanraragi" class="headerlink" title="例子：Lanraragi"></a>例子：Lanraragi</h1><p>回到最初的需求：反向代理 Lanraragi，并提供登录功能。</p>
-<p>Docker compose:</p>
-<figure class="highlight yaml"><table><tr><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&quot;3&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">nginx:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">elnino2024/nginx:1.24</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">nginx-lanraragi</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/docker/nginx_conf/nginx-lanraragi.conf:/etc/nginx/nginx.conf:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/docker/nginx_ssl:/etc/nginx/ssl/:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/opt/docker/nginx_auth:/etc/nginx/auth/:ro</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">43000</span><span class="string">:443</span></span><br><span class="line">  <span class="attr">lanraragi:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">difegue/lanraragi:v.0.9.0</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">lanraragi</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/mnt/hgfs/doujinshiArchives:/home/koyomi/lanraragi/content:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">lanraragi-database:/home/koyomi/lanraragi/database</span></span><br><span class="line">    <span class="attr">depends_on:</span> </span><br><span class="line">      <span class="bullet">-</span> <span class="string">nginx</span></span><br><span class="line">  </span><br><span class="line"><span class="attr">volumes:</span></span><br><span class="line">  <span class="attr">lanraragi-database:</span></span><br></pre></td></tr></table></figure>
-
-<p>Nginx 配置：</p>
-<figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="attribute">user</span>  nginx;</span><br><span class="line"><span class="attribute">worker_processes</span>  auto;</span><br><span class="line"></span><br><span class="line"><span class="attribute">error_log</span>  /var/log/nginx/<span class="literal">error</span>.log <span class="literal">notice</span>;</span><br><span class="line"><span class="attribute">pid</span>        /var/run/nginx.pid;</span><br><span class="line"></span><br><span class="line"><span class="section">events</span> &#123;</span><br><span class="line">    <span class="attribute">worker_connections</span>  <span class="number">1024</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="section">http</span> &#123;</span><br><span class="line">    <span class="attribute">include</span>       /etc/nginx/mime.types;</span><br><span class="line">    <span class="attribute">default_type</span>  application/octet-stream;</span><br><span class="line">    </span><br><span class="line">    <span class="attribute">log_format</span>  main  <span class="string">&#x27;<span class="variable">$remote_addr</span> - <span class="variable">$remote_user</span> [<span class="variable">$time_local</span>] &quot;<span class="variable">$request</span>&quot; &#x27;</span></span><br><span class="line">                      <span class="string">&#x27;<span class="variable">$status</span> <span class="variable">$body_bytes_sent</span> &quot;<span class="variable">$http_referer</span>&quot; &#x27;</span></span><br><span class="line">                      <span class="string">&#x27;&quot;<span class="variable">$http_user_agent</span>&quot; &quot;<span class="variable">$http_x_forwarded_for</span>&quot;&#x27;</span>;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">access_log</span>  /var/log/nginx/access.log  main;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">sendfile</span>        <span class="literal">on</span>;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">keepalive_timeout</span>  <span class="number">65</span>;</span><br><span class="line"></span><br><span class="line">    <span class="section">server</span> &#123;</span><br><span class="line">        <span class="attribute">listen</span> <span class="number">443</span> default_server ssl http2;</span><br><span class="line">        <span class="attribute">listen</span> [::]:<span class="number">443</span> ssl http2;</span><br><span class="line"></span><br><span class="line">        <span class="attribute">ssl_certificate</span> /etc/nginx/ssl/nginx_server.crt;</span><br><span class="line">        <span class="attribute">ssl_certificate_key</span> /etc/nginx/ssl/nginx_server.key;</span><br><span class="line"></span><br><span class="line">        <span class="attribute">auth_basic</span>           <span class="string">&quot;Login to view any content&quot;</span>;</span><br><span class="line">        <span class="attribute">auth_basic_user_file</span> /etc/nginx/auth/.htpasswd-lanraragi;</span><br><span class="line"></span><br><span class="line">        <span class="section">location</span> / &#123;</span><br><span class="line">            <span class="comment"># 在同一个网络中，直接通过服务名访问</span></span><br><span class="line">            <span class="comment"># lanraragi 也不需要映射任何端口</span></span><br><span class="line">            <span class="attribute">proxy_pass</span> http://lanraragi:3000;</span><br><span class="line">            <span class="attribute">proxy_http_version</span> <span class="number">1</span>.<span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">            <span class="attribute">proxy_set_header</span> Upgrade <span class="variable">$http_upgrade</span>;</span><br><span class="line">            <span class="attribute">http2_push_preload</span> <span class="literal">on</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>Lanraragi 本身的路由策略没法改，这意味着必须把 <code>/</code> 原封不动地映射到 Lanraragi 的 URI。也就是说，需要给 Lanraragi 一个单独的 Nginx 实例。</p>
-<p>从计算资源的角度，问题并不大，因为一个 Nginx 实例占用不到 20 MB 的内存。</p>
-<p>如果给每个现有的软件都用一个 Nginx ，那么这些 Nginx 实例可以共享一个 SSL 证书。毕竟访问 Linux 主机时，是通过端口区分 Nginx，而证书是和 IP &#x2F; 域名 绑定的。尽管可以这么做，我不太清楚这是不是最佳实践。但在家庭局域网的场景中，这显然够用了。</p>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ul>
-<li>ChatGPT</li>
-<li><a href="https://mindsers.blog/en/post/https-using-nginx-certbot-docker/">HTTPS using Nginx and Let’s encrypt in Docker</a></li>
-<li><a href="https://www.baeldung.com/openssl-self-signed-cert">Creating a Self-Signed Certificate With OpenSSL</a></li>
-<li><a href="https://hub.docker.com/_/nginx">Nginx Docker hub</a></li>
-<li><a href="https://www.tangyuecan.com/2021/12/17/%E5%B1%80%E5%9F%9F%E7%BD%91%E5%86%85%E6%90%AD%E5%BB%BA%E6%B5%8F%E8%A7%88%E5%99%A8%E5%8F%AF%E4%BF%A1%E4%BB%BB%E7%9A%84ssl%E8%AF%81%E4%B9%A6/">局域网内搭建浏览器可信任的SSL证书</a></li>
-<li><a href="https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-nginx-in-ubuntu-16-04">How To Create a Self-Signed SSL Certificate for Nginx in Ubuntu 16.04</a></li>
-<li><a href="https://stackoverflow.com/questions/10175812/how-to-generate-a-self-signed-ssl-certificate-using-openssl">How to generate a self-signed SSL certificate using OpenSSL?</a></li>
-<li><a href="https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/">Restricting Access with HTTP Basic Authentication</a></li>
-</ul>
-]]></content>
-      <categories>
-        <category>tech</category>
-        <category>Docker</category>
-      </categories>
-      <tags>
-        <tag>Docker</tag>
-        <tag>Nginx</tag>
-        <tag>SSL</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Hexo自定义404页面</title>
     <url>/2023/07/04/Hexo-custom-404/</url>
     <content><![CDATA[<h1 id="自定义-404-页面"><a href="#自定义-404-页面" class="headerlink" title="自定义 404 页面"></a>自定义 404 页面</h1><p>首先，创建一个名为 <code>404</code> 的 post</p>
@@ -583,6 +597,76 @@
       </categories>
       <tags>
         <tag>Hexo</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>LocalSend：局域网文件传输利器</title>
+    <url>/2023/09/04/LocalSend-A-powerful-tool-for-local-file-transfer/</url>
+    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>最近准备重装笔记本的系统，因此要备份文件，存到台式机里。我将要备份的文件夹压缩，通过 Windows 自带的文件夹共享（局域网共享），传输这些压缩包。</p>
+<p>但是，传输过程却非常艰难。有的压缩包有 10 几个 GB，传了一分钟，网速就没了，之后就开始报超时之类的错误。更离谱的是，有个压缩包在两台电脑上<a href="#%E6%96%87%E4%BB%B6%E4%BC%A0%E8%BE%93%E6%A0%A1%E9%AA%8C">摘要算法</a>的结果不同。</p>
+<p>显然，windows SMB 协议既不能保证速度，也不能保证数据正确性，于是我开始寻找更加好用的局域网传输软件。它，就是本文的主角 —— LocalSend</p>
+<span id="more"></span>
+
+<h1 id="LocalSend-介绍"><a href="#LocalSend-介绍" class="headerlink" title="LocalSend 介绍"></a>LocalSend 介绍</h1><p>LocalSend 是一个<strong>跨平台</strong>的局域网传输软件，支持 Windows, Linux, macOS, Android 和 IOS. 这是它的<a href="https://localsend.org/#/">官网</a>；这是它的 <a href="https://github.com/localsend/localsend">GitHub 仓库</a></p>
+<p>作者设计了一个基于 HTTP 的传输协议，在<a href="https://github.com/localsend/protocol">这里</a></p>
+<p>LocalSend 基本上是开箱即用，没必要专门写一节 quickstart</p>
+<p>但是，由于 Windows 防火墙的默认配置，第一次使用该软件时，同局域网内的设备可能无法发现这台 Windows 设备。下面，我将给出解决方案。</p>
+<h1 id="防火墙配置"><a href="#防火墙配置" class="headerlink" title="防火墙配置"></a>防火墙配置</h1><h2 id="我的方案"><a href="#我的方案" class="headerlink" title="我的方案"></a>我的方案</h2><ol>
+<li><p>将家庭 WIFI 设置为专用网络（不建议在公共网络使用局域网传输文件，无论软件作者做了怎样的加密，我都认为是不安全的。因此，这里不讨论公用网络的情况）<img src="/MarkDownImages/image-20230904212558782.png" alt="image-20230904212558782"></p>
+</li>
+<li><p>进入『配置防火墙和安全设置』</p>
+<p> <img src="/MarkDownImages/image-20230904212718315.png" alt="image-20230904212718315"></p>
+</li>
+<li><p>『允许应用通过防火墙』——『更改配置』。找到 <code>localsend_app</code>（其他以<code>localsend</code>开头的也可以这样做），将它之前那的单选框选上。以防万一，确保之后的两个单选框也是选上的（应该是默认开启的）。然后点击『确定』</p>
+<p> <img src="/MarkDownImages/image-20230904212911221.png" alt="image-20230904212911221"></p>
+</li>
+<li><p>重启 LocalSend，等待找到目标主机</p>
+</li>
+</ol>
+<h2 id="网上的方案（未验证）"><a href="#网上的方案（未验证）" class="headerlink" title="网上的方案（未验证）"></a>网上的方案（未验证）</h2><p>这里也给出网上其他人的解决方法，虽然我觉得全局操作防火墙<strong>很不安全</strong>。</p>
+<ol>
+<li><p>打开『Windows Defender 防火墙』</p>
+<p> <img src="/MarkDownImages/image-20230904213446263.png" alt="image-20230904213446263"></p>
+</li>
+<li><p>『高级设置』——『Windows 防火墙属性』。在『专用配置文件』一栏，将『入站连接』改为『允许』，然后『应用』</p>
+<p> <img src="/MarkDownImages/image-20230904213728952.png" alt="image-20230904213728952"></p>
+</li>
+<li><p>重启 LocalSend，查看能否找到目标主机。如果不行，再将上述『公用配置文件』一栏的『入站连接』改为『允许』，然后『应用』，再次重启 LocalSend 并检验。</p>
+</li>
+</ol>
+<h1 id="文件传输校验"><a href="#文件传输校验" class="headerlink" title="文件传输校验"></a>文件传输校验</h1><p>在网络传输文件后，通常要使用摘要算法（MD5、SHA1、SHA256等）对比两份文件是否一致，防止由于网络导致的数据丢失。很多现成的工具提供这样的服务，这里我介绍 3 个。</p>
+<h2 id="7-zip"><a href="#7-zip" class="headerlink" title="7-zip"></a>7-zip</h2><p>7-zip 虽然是一个开源的压缩软件，但也提供摘要函数。</p>
+<p>右键选中要摘要的文件，点击『CRC SHA』，选择摘要算法</p>
+<p><img src="/MarkDownImages/image-20230904214607556.png" alt="image-20230904214607556"></p>
+<p>如果右键菜单没有该选项，在 7-zip 中配置即可：</p>
+<p><img src="/MarkDownImages/image-20230904214947662.png" alt="image-20230904214947662"></p>
+<h2 id="openssl"><a href="#openssl" class="headerlink" title="openssl"></a>openssl</h2><p>Linux 大多数发行版都会自带的工具。也可以在 git bash 中使用这个命令。语法是：</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl 摘要算法名 文件路径</span><br></pre></td></tr></table></figure>
+
+<p>例子：</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">Elnino@PC MINGW64 ~/Desktop</span><br><span class="line">$ openssl sha256 generate-random-file.cmd</span><br><span class="line">SHA256(generate-random-file.cmd)= 03f9454e4ee7923d08aefa4957282b62a655e7231ea6f4bdd6cdcc4e9a4c1bd9</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="Certutil"><a href="#Certutil" class="headerlink" title="Certutil"></a>Certutil</h2><p>Windows 上的一个用来提供证书服务的工具，也提供了一些摘要算法。语法是：</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">certutil <span class="literal">-hashfile</span> 文件路径 摘要算法名</span><br></pre></td></tr></table></figure>
+
+<p>例子：</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="built_in">PS</span> C:\Users\Elnino\Desktop&gt; certutil <span class="literal">-hashfile</span> .\generate<span class="literal">-random-file</span>.cmd sha256</span><br><span class="line">SHA256 的 .\generate<span class="literal">-random-file</span>.cmd 哈希:</span><br><span class="line"><span class="number">03</span>f9454e4ee7923d08aefa4957282b62a655e7231ea6f4bdd6cdcc4e9a4c1bd9</span><br><span class="line">CertUtil: <span class="literal">-hashfile</span> 命令成功完成。</span><br></pre></td></tr></table></figure>
+
+
+
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在本文中，我介绍了一款开源好用的局域网传输工具 —— LocalSend。之后，我又给出了 Windows 系统中如何配置防火墙，使得其他设备能发现当前的设备。最后，我介绍了一些常见的对文件进行摘要的工具：从网络下载的文件，理论上都要进行一遍校验，防止数据损坏或丢失。</p>
+]]></content>
+      <categories>
+        <category>softwares</category>
+        <category>LocalSend</category>
+      </categories>
+      <tags>
+        <tag>LocalSend</tag>
+        <tag>settings</tag>
+        <tag>Firewall</tag>
+        <tag>Windows</tag>
       </tags>
   </entry>
   <entry>
@@ -703,73 +787,44 @@
       </tags>
   </entry>
   <entry>
-    <title>LocalSend：局域网文件传输利器</title>
-    <url>/2023/09/04/LocalSend-A-powerful-tool-for-local-file-transfer/</url>
-    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>最近准备重装笔记本的系统，因此要备份文件，存到台式机里。我将要备份的文件夹压缩，通过 Windows 自带的文件夹共享（局域网共享），传输这些压缩包。</p>
-<p>但是，传输过程却非常艰难。有的压缩包有 10 几个 GB，传了一分钟，网速就没了，之后就开始报超时之类的错误。更离谱的是，有个压缩包在两台电脑上<a href="#%E6%96%87%E4%BB%B6%E4%BC%A0%E8%BE%93%E6%A0%A1%E9%AA%8C">摘要算法</a>的结果不同。</p>
-<p>显然，windows SMB 协议既不能保证速度，也不能保证数据正确性，于是我开始寻找更加好用的局域网传输软件。它，就是本文的主角 —— LocalSend</p>
+    <title>PotPlayer 启用 Nvidia 超分辨率</title>
+    <url>/2023/07/09/PotPlayer-Enable-Nvidia-Super-Resolution/</url>
+    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>Nvidia VSR (Video Super Resolution) 通过 AI 技术优化视频的画面质量，主要表现在锐化低分辨率的视频上。该技术最初只支持 Chrome 和 Edge 浏览器。</p>
+<p>如何在本地视频播放器中体验这项技术？PotPlayer 最近发布了相关更新，支持了该技术。</p>
+<p>PotPlayer 是目前数一数二的视频播放器，也是我的主力播放器。趁着这次更新，我来记录一下如何在 PotPlayer 上使用 Nvidia Super Resolution.</p>
+<h1 id="浏览器开启-VSR"><a href="#浏览器开启-VSR" class="headerlink" title="浏览器开启 VSR"></a>浏览器开启 VSR</h1><p>本小节先介绍一下如何让 Chrome 和 Edge 浏览器使用 Nvidia Super Resolution。</p>
 <span id="more"></span>
 
-<h1 id="LocalSend-介绍"><a href="#LocalSend-介绍" class="headerlink" title="LocalSend 介绍"></a>LocalSend 介绍</h1><p>LocalSend 是一个<strong>跨平台</strong>的局域网传输软件，支持 Windows, Linux, macOS, Android 和 IOS. 这是它的<a href="https://localsend.org/#/">官网</a>；这是它的 <a href="https://github.com/localsend/localsend">GitHub 仓库</a></p>
-<p>作者设计了一个基于 HTTP 的传输协议，在<a href="https://github.com/localsend/protocol">这里</a></p>
-<p>LocalSend 基本上是开箱即用，没必要专门写一节 quickstart</p>
-<p>但是，由于 Windows 防火墙的默认配置，第一次使用该软件时，同局域网内的设备可能无法发现这台 Windows 设备。下面，我将给出解决方案。</p>
-<h1 id="防火墙配置"><a href="#防火墙配置" class="headerlink" title="防火墙配置"></a>防火墙配置</h1><h2 id="我的方案"><a href="#我的方案" class="headerlink" title="我的方案"></a>我的方案</h2><ol>
-<li><p>将家庭 WIFI 设置为专用网络（不建议在公共网络使用局域网传输文件，无论软件作者做了怎样的加密，我都认为是不安全的。因此，这里不讨论公用网络的情况）<img src="/MarkDownImages/image-20230904212558782.png" alt="image-20230904212558782"></p>
-</li>
-<li><p>进入『配置防火墙和安全设置』</p>
-<p> <img src="/MarkDownImages/image-20230904212718315.png" alt="image-20230904212718315"></p>
-</li>
-<li><p>『允许应用通过防火墙』——『更改配置』。找到 <code>localsend_app</code>（其他以<code>localsend</code>开头的也可以这样做），将它之前那的单选框选上。以防万一，确保之后的两个单选框也是选上的（应该是默认开启的）。然后点击『确定』</p>
-<p> <img src="/MarkDownImages/image-20230904212911221.png" alt="image-20230904212911221"></p>
-</li>
-<li><p>重启 LocalSend，等待找到目标主机</p>
-</li>
-</ol>
-<h2 id="网上的方案（未验证）"><a href="#网上的方案（未验证）" class="headerlink" title="网上的方案（未验证）"></a>网上的方案（未验证）</h2><p>这里也给出网上其他人的解决方法，虽然我觉得全局操作防火墙<strong>很不安全</strong>。</p>
-<ol>
-<li><p>打开『Windows Defender 防火墙』</p>
-<p> <img src="/MarkDownImages/image-20230904213446263.png" alt="image-20230904213446263"></p>
-</li>
-<li><p>『高级设置』——『Windows 防火墙属性』。在『专用配置文件』一栏，将『入站连接』改为『允许』，然后『应用』</p>
-<p> <img src="/MarkDownImages/image-20230904213728952.png" alt="image-20230904213728952"></p>
-</li>
-<li><p>重启 LocalSend，查看能否找到目标主机。如果不行，再将上述『公用配置文件』一栏的『入站连接』改为『允许』，然后『应用』，再次重启 LocalSend 并检验。</p>
-</li>
-</ol>
-<h1 id="文件传输校验"><a href="#文件传输校验" class="headerlink" title="文件传输校验"></a>文件传输校验</h1><p>在网络传输文件后，通常要使用摘要算法（MD5、SHA1、SHA256等）对比两份文件是否一致，防止由于网络导致的数据丢失。很多现成的工具提供这样的服务，这里我介绍 3 个。</p>
-<h2 id="7-zip"><a href="#7-zip" class="headerlink" title="7-zip"></a>7-zip</h2><p>7-zip 虽然是一个开源的压缩软件，但也提供摘要函数。</p>
-<p>右键选中要摘要的文件，点击『CRC SHA』，选择摘要算法</p>
-<p><img src="/MarkDownImages/image-20230904214607556.png" alt="image-20230904214607556"></p>
-<p>如果右键菜单没有该选项，在 7-zip 中配置即可：</p>
-<p><img src="/MarkDownImages/image-20230904214947662.png" alt="image-20230904214947662"></p>
-<h2 id="openssl"><a href="#openssl" class="headerlink" title="openssl"></a>openssl</h2><p>Linux 大多数发行版都会自带的工具。也可以在 git bash 中使用这个命令。语法是：</p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">openssl 摘要算法名 文件路径</span><br></pre></td></tr></table></figure>
+<h2 id="更新驱动版本"><a href="#更新驱动版本" class="headerlink" title="更新驱动版本"></a>更新驱动版本</h2><p>更新驱动版本，至少到 532 版</p>
+<img src="/MarkDownImages/image-20230709161546792.png" alt="image-20230709161546792" style="zoom: 67%;" />
 
-<p>例子：</p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">Elnino@PC MINGW64 ~/Desktop</span><br><span class="line">$ openssl sha256 generate-random-file.cmd</span><br><span class="line">SHA256(generate-random-file.cmd)= 03f9454e4ee7923d08aefa4957282b62a655e7231ea6f4bdd6cdcc4e9a4c1bd9</span><br></pre></td></tr></table></figure>
+<h2 id="设置"><a href="#设置" class="headerlink" title="设置"></a>设置</h2><p>在 Nvidia Control Panel 中进入如下配置：</p>
+<p>开启『超分辨率』，选择质量。数字越大，增强效果越强，同时对 GPU 压力也越大</p>
+<p><img src="/MarkDownImages/image-20230709161702760.png" alt="image-20230709161702760"></p>
+<h1 id="PotPlayer-开启-VSR"><a href="#PotPlayer-开启-VSR" class="headerlink" title="PotPlayer 开启 VSR"></a>PotPlayer 开启 VSR</h1><h2 id="更新版本"><a href="#更新版本" class="headerlink" title="更新版本"></a>更新版本</h2><p>在 PotPlayer 近期的更新说明中，提到了：</p>
+<blockquote>
+<p>添加 GPU 超分辨率功能到内置的 D3D11 视频渲染器</p>
+</blockquote>
+<img src="/MarkDownImages/image-20230709162050531.png" alt="image-20230709162050531" style="zoom: 67%;" />
 
+<p>至少将 PotPlayer 升级到这个版本</p>
+<h2 id="设置-1"><a href="#设置-1" class="headerlink" title="设置"></a>设置</h2><p>确保使用的是『Direct3D 11 视频渲染器』，并打开『超分辨率』（默认是关闭的）</p>
+<img src="/MarkDownImages/image-20230709162350077.png" alt="image-20230709162350077" style="zoom: 80%;" />
 
-
-<h2 id="Certutil"><a href="#Certutil" class="headerlink" title="Certutil"></a>Certutil</h2><p>Windows 上的一个用来提供证书服务的工具，也提供了一些摘要算法。语法是：</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">certutil <span class="literal">-hashfile</span> 文件路径 摘要算法名</span><br></pre></td></tr></table></figure>
-
-<p>例子：</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="built_in">PS</span> C:\Users\Elnino\Desktop&gt; certutil <span class="literal">-hashfile</span> .\generate<span class="literal">-random-file</span>.cmd sha256</span><br><span class="line">SHA256 的 .\generate<span class="literal">-random-file</span>.cmd 哈希:</span><br><span class="line"><span class="number">03</span>f9454e4ee7923d08aefa4957282b62a655e7231ea6f4bdd6cdcc4e9a4c1bd9</span><br><span class="line">CertUtil: <span class="literal">-hashfile</span> 命令成功完成。</span><br></pre></td></tr></table></figure>
-
-
-
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>在本文中，我介绍了一款开源好用的局域网传输工具 —— LocalSend。之后，我又给出了 Windows 系统中如何配置防火墙，使得其他设备能发现当前的设备。最后，我介绍了一些常见的对文件进行摘要的工具：从网络下载的文件，理论上都要进行一遍校验，防止数据损坏或丢失。</p>
+<h2 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h2><p>随便打开一个视频，按 <code>Tab</code> 键。如果『视频渲染器 - 缩放』显示的是『GPU Super Resolution』，则说明配置成功了。播放视频时，也可以在任务管理器中看到 GPU 的负载升高。</p>
+<p><img src="/MarkDownImages/image-20230709162617479.png" alt="image-20230709162617479"></p>
+<h1 id="参考文章"><a href="#参考文章" class="headerlink" title="参考文章"></a>参考文章</h1><p><a href="https://blogs.nvidia.com/blog/2023/02/28/rtx-video-super-resolution/">Pixel Perfect: RTX Video Super Resolution Now Available for GeForce RTX 40 and 30 Series GPUs</a></p>
+<p><a href="https://potplayer.daum.net/">PotPlayer 官网</a></p>
 ]]></content>
       <categories>
         <category>softwares</category>
-        <category>LocalSend</category>
+        <category>PotPlayer</category>
       </categories>
       <tags>
-        <tag>LocalSend</tag>
         <tag>settings</tag>
-        <tag>Firewall</tag>
-        <tag>Windows</tag>
+        <tag>PotPlayer</tag>
+        <tag>Nvidia</tag>
+        <tag>VSR</tag>
       </tags>
   </entry>
   <entry>
@@ -891,6 +946,37 @@
       </tags>
   </entry>
   <entry>
+    <title>Python venv 使用</title>
+    <url>/2023/12/20/Python-venv-use/</url>
+    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>Python 以其模块丰富而著称。但是，不同于 Java 开发中 Maven 使用 group Id、artifact Id 和 version 来唯一确定一个依赖。在实践中，绝大多数 Python 项目<strong>只</strong>通过模块名来区分模块。<code>pip install &lt;module&gt;</code>，一个模块就装好了。那么模块的版本呢？大部分项目的 requirements 都不会提及版本，造成后来者跑项目时不停地报错。</p>
+<p>因此，弱化版本号的概念无疑<strong>弊大于利</strong>。如何解决？使用 venv（虚拟环境）。</p>
+<p>如果直接使用 <code>pip install</code> ，那么所有 Python 项目共用这些模块，会产生版本会兼容。venv 将原始的 Python 环境拷贝一份。虚拟环境的运行只依赖于拷贝后的 Python，安装的模块也只会存在于该虚拟环境中。多个虚拟环境间相互隔离。</p>
+<h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><p>1️⃣创建  venv :</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">python <span class="literal">-m</span> venv C:\Users\Elnino\Desktop\test\venv</span><br></pre></td></tr></table></figure>
+
+<p><code>C:\Users\Elnino\Desktop\test\venv</code> 目录就是该虚拟环境</p>
+<span id="more"></span>
+
+<p>2️⃣启动：</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">venv\Scripts\activate</span><br></pre></td></tr></table></figure>
+
+<p>如果提示符前出现 <code>(venv)</code>，就说明启动成功，在里面可以随便玩了。</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">(venv) C:\Users\Elnino\Desktop\test&gt;pip list</span><br></pre></td></tr></table></figure>
+
+<p>3️⃣退出：</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">(venv) C:\Users\Elnino\Desktop\test&gt;deactivate</span><br><span class="line">C:\Users\Elnino\Desktop\test&gt;</span><br></pre></td></tr></table></figure>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://docs.python.org/3/library/venv.html">venv — Creation of virtual environments</a></p>
+]]></content>
+      <categories>
+        <category>tech</category>
+        <category>Python</category>
+      </categories>
+      <tags>
+        <tag>Python</tag>
+        <tag>venv</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Spring MVC 使用 Validation 注解实现请求参数自动校验</title>
     <url>/2023/07/05/Spring-MVC-Automatic-Validation-of-Request-Parameters-Using-Validation-Annotations/</url>
     <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>控制器方法（ handler ）中负责请求参数校验。</p>
@@ -948,109 +1034,6 @@
         <tag>Spring Boot</tag>
         <tag>Spring MVC</tag>
         <tag>Controller</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>PotPlayer 启用 Nvidia 超分辨率</title>
-    <url>/2023/07/09/PotPlayer-Enable-Nvidia-Super-Resolution/</url>
-    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>Nvidia VSR (Video Super Resolution) 通过 AI 技术优化视频的画面质量，主要表现在锐化低分辨率的视频上。该技术最初只支持 Chrome 和 Edge 浏览器。</p>
-<p>如何在本地视频播放器中体验这项技术？PotPlayer 最近发布了相关更新，支持了该技术。</p>
-<p>PotPlayer 是目前数一数二的视频播放器，也是我的主力播放器。趁着这次更新，我来记录一下如何在 PotPlayer 上使用 Nvidia Super Resolution.</p>
-<h1 id="浏览器开启-VSR"><a href="#浏览器开启-VSR" class="headerlink" title="浏览器开启 VSR"></a>浏览器开启 VSR</h1><p>本小节先介绍一下如何让 Chrome 和 Edge 浏览器使用 Nvidia Super Resolution。</p>
-<span id="more"></span>
-
-<h2 id="更新驱动版本"><a href="#更新驱动版本" class="headerlink" title="更新驱动版本"></a>更新驱动版本</h2><p>更新驱动版本，至少到 532 版</p>
-<img src="/MarkDownImages/image-20230709161546792.png" alt="image-20230709161546792" style="zoom: 67%;" />
-
-<h2 id="设置"><a href="#设置" class="headerlink" title="设置"></a>设置</h2><p>在 Nvidia Control Panel 中进入如下配置：</p>
-<p>开启『超分辨率』，选择质量。数字越大，增强效果越强，同时对 GPU 压力也越大</p>
-<p><img src="/MarkDownImages/image-20230709161702760.png" alt="image-20230709161702760"></p>
-<h1 id="PotPlayer-开启-VSR"><a href="#PotPlayer-开启-VSR" class="headerlink" title="PotPlayer 开启 VSR"></a>PotPlayer 开启 VSR</h1><h2 id="更新版本"><a href="#更新版本" class="headerlink" title="更新版本"></a>更新版本</h2><p>在 PotPlayer 近期的更新说明中，提到了：</p>
-<blockquote>
-<p>添加 GPU 超分辨率功能到内置的 D3D11 视频渲染器</p>
-</blockquote>
-<img src="/MarkDownImages/image-20230709162050531.png" alt="image-20230709162050531" style="zoom: 67%;" />
-
-<p>至少将 PotPlayer 升级到这个版本</p>
-<h2 id="设置-1"><a href="#设置-1" class="headerlink" title="设置"></a>设置</h2><p>确保使用的是『Direct3D 11 视频渲染器』，并打开『超分辨率』（默认是关闭的）</p>
-<img src="/MarkDownImages/image-20230709162350077.png" alt="image-20230709162350077" style="zoom: 80%;" />
-
-<h2 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h2><p>随便打开一个视频，按 <code>Tab</code> 键。如果『视频渲染器 - 缩放』显示的是『GPU Super Resolution』，则说明配置成功了。播放视频时，也可以在任务管理器中看到 GPU 的负载升高。</p>
-<p><img src="/MarkDownImages/image-20230709162617479.png" alt="image-20230709162617479"></p>
-<h1 id="参考文章"><a href="#参考文章" class="headerlink" title="参考文章"></a>参考文章</h1><p><a href="https://blogs.nvidia.com/blog/2023/02/28/rtx-video-super-resolution/">Pixel Perfect: RTX Video Super Resolution Now Available for GeForce RTX 40 and 30 Series GPUs</a></p>
-<p><a href="https://potplayer.daum.net/">PotPlayer 官网</a></p>
-]]></content>
-      <categories>
-        <category>softwares</category>
-        <category>PotPlayer</category>
-      </categories>
-      <tags>
-        <tag>settings</tag>
-        <tag>PotPlayer</tag>
-        <tag>Nvidia</tag>
-        <tag>VSR</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>VS Code Remote SSH 密钥登录</title>
-    <url>/2024/01/01/VS-Code-Remote-SSH-Login-By-Key/</url>
-    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>VS Code 的 Remote SSH 插件提供了远程连接其他主机的功能。连接就需要用户名和密码，而密钥可以在每次登录时不输入密码、直接登录。</p>
-<p>但是，VS Code 实际上只是提供了 GUI，而 SSH 如何使用密钥登录，则是另一码事。两者不应该混为一谈。</p>
-<p>本文将主要讲解 SSH 密钥在本机和远程机器上如何配置。之后，讲解 VS Code Remote SSH 插件的使用。</p>
-<span id="more"></span>
-
-<h1 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h1><ul>
-<li>本机：Windows 10</li>
-<li>远程机器：本地虚拟机 CentOS 8，root 用户</li>
-</ul>
-<h1 id="本机-SSH-配置"><a href="#本机-SSH-配置" class="headerlink" title="本机 SSH 配置"></a>本机 SSH 配置</h1><p>使用 <code>ssh-keygen</code> 命令，会在 <code>C:\users\&lt;user&gt;\.ssh</code> 目录下创建<strong>本机</strong>的 RSA 公私钥：</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="built_in">PS</span> C:\Users\Elnino\.ssh&gt; <span class="built_in">dir</span></span><br><span class="line">    目录: C:\Users\Elnino\.ssh</span><br><span class="line">Mode                 LastWriteTime         Length Name</span><br><span class="line"><span class="literal">----</span>                 <span class="literal">-------------</span>         <span class="literal">------</span> <span class="literal">----</span></span><br><span class="line"><span class="literal">-a----</span>          <span class="number">2024</span>/<span class="number">1</span>/<span class="number">1</span>     <span class="number">12</span>:<span class="number">26</span>             <span class="number">91</span> config</span><br><span class="line"><span class="literal">-a----</span>         <span class="number">2023</span>/<span class="number">9</span>/<span class="number">30</span>     <span class="number">18</span>:<span class="number">03</span>           <span class="number">2610</span> id_rsa</span><br><span class="line"><span class="literal">-a----</span>         <span class="number">2023</span>/<span class="number">9</span>/<span class="number">30</span>     <span class="number">18</span>:<span class="number">03</span>            <span class="number">576</span> id_rsa.pub</span><br><span class="line"><span class="literal">-a----</span>        <span class="number">2023</span>/<span class="number">12</span>/<span class="number">18</span>     <span class="number">20</span>:<span class="number">42</span>           <span class="number">1398</span> known_hosts</span><br><span class="line"><span class="literal">-a----</span>         <span class="number">2023</span>/<span class="number">9</span>/<span class="number">30</span>     <span class="number">18</span>:<span class="number">03</span>             <span class="number">92</span> known_hosts.old</span><br></pre></td></tr></table></figure>
-
-<p><code>id_rsa</code> 是私钥，<code>id_rsa.pub</code> 是公钥</p>
-<h1 id="远程主机-SSH-配置"><a href="#远程主机-SSH-配置" class="headerlink" title="远程主机 SSH 配置"></a>远程主机 SSH 配置</h1><p>将<strong>本机</strong>的 <code>id_rsa.pub</code> 上传到 Linux 远程主机的 <code>~/ssh</code> 目录，并改名为 <code>authorized_keys</code></p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">[root@CentOS100 .ssh]<span class="comment"># ll</span></span><br><span class="line">total 16</span><br><span class="line">-rw-r--r--. 1 root root 576 Jan  1 11:50 authorized_keys</span><br><span class="line">-rw-------. 1 root root 411 Jul  1  2023 id_ed25519</span><br><span class="line">-rw-r--r--. 1 root root  96 Jul  1  2023 id_ed25519.pub</span><br><span class="line">-rw-r--r--. 1 root root 880 Dec 18 21:07 known_hosts</span><br></pre></td></tr></table></figure>
-
-<h1 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h1><p>以上步骤，就是 SSH 密钥登录的全部配置。</p>
-<p>打开本机的PowerShell，使用 <code>ssh &lt;user&gt;@&lt;ip&gt;</code> 测试连接。应该能够直接登录，不需要输入密码。</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="built_in">PS</span> C:\Users\Elnino&gt; ssh root@CentOS100</span><br><span class="line">Activate the web console with: systemctl enable <span class="literal">--now</span> cockpit.socket</span><br><span class="line"></span><br><span class="line">Last login: Mon Jan  <span class="number">1</span> <span class="number">12</span>:<span class="number">26</span>:<span class="number">15</span> <span class="number">2024</span> from &lt;ip&gt;</span><br><span class="line">[<span class="type">root</span>@<span class="type">CentOS100</span> ~]<span class="comment"># pwd</span></span><br><span class="line">/root</span><br></pre></td></tr></table></figure>
-
-<h1 id="VS-Code-配置"><a href="#VS-Code-配置" class="headerlink" title="VS Code 配置"></a>VS Code 配置</h1><ol>
-<li><p>安装 <a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh">Remote - SSH</a> 插件：</p>
-<p> <img src="/MarkDownImages/image-20240101130622357.png" alt="image-20240101130622357"></p>
-</li>
-<li><p>依次点击这3个按钮，进入配置文件：</p>
-<p> <img src="/MarkDownImages/image-20240101130733756.png" alt="image-20240101130733756"></p>
-</li>
-<li><p>填写配置文件（这个文件其实是主机的 SSH 配置）：</p>
-<p> <img src="/MarkDownImages/image-20240101130804525.png" alt="image-20240101130804525"></p>
-<ul>
-<li><code>Host</code>：识别这个远程连接的 Id，可以随便起个名字；</li>
-<li><code>HostName</code>：远程主机的域名或 IP；</li>
-<li><code>User</code>：登录远程主机的用户；</li>
-<li><code>IdentityFile</code>：对应 <code>authorized_keys</code> 的<strong>私钥</strong>的存放位置；</li>
-</ul>
-</li>
-</ol>
-<p>关于配置文件的几点说明：</p>
-<ul>
-<li>如果没有在远程主机配置 <code>authorized_keys</code> ，那么 <code>IdentityFile</code> 属性不会起作用。登录时会要求输入密码；</li>
-<li>在这个案例中，<code>IdentityFile</code> 其实没必要配置。因为 <code>authorized_keys</code> 就是本机的公钥，而 SSH 默认使用本机的私钥尝试连接；</li>
-<li>一般情况下，<code>authorized_keys</code> 不会是本机的公钥，此时 <code>IdentityFile</code> 必须要配置，否则就要输入密码；</li>
-</ul>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ul>
-<li><a href="https://medium.com/@sean4deepak/using-ssh-key-authentication-in-visual-studio-codes-remote-ssh-extension-4e5b922448e7">Using SSH Key Authentication in Visual Studio Code’ s Remote SSH Extension</a></li>
-<li><a href="https://adamtheautomator.com/add-ssh-key-to-vs-code/">Add SSH Key to VS Code and Connect to a Host</a></li>
-<li><a href="https://stackoverflow.com/questions/48328446/id-rsa-pub-file-ssh-error-invalid-format">id_rsa.pub file SSH Error: invalid format</a></li>
-</ul>
-]]></content>
-      <categories>
-        <category>softwares</category>
-        <category>VS Code</category>
-      </categories>
-      <tags>
-        <tag>settings</tag>
-        <tag>VS Code</tag>
-        <tag>SSH</tag>
       </tags>
   </entry>
   <entry>
@@ -1145,6 +1128,143 @@
       </tags>
   </entry>
   <entry>
+    <title>VS Code Remote SSH 密钥登录</title>
+    <url>/2024/01/01/VS-Code-Remote-SSH-Login-By-Key/</url>
+    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>VS Code 的 Remote SSH 插件提供了远程连接其他主机的功能。连接就需要用户名和密码，而密钥可以在每次登录时不输入密码、直接登录。</p>
+<p>但是，VS Code 实际上只是提供了 GUI，而 SSH 如何使用密钥登录，则是另一码事。两者不应该混为一谈。</p>
+<p>本文将主要讲解 SSH 密钥在本机和远程机器上如何配置。之后，讲解 VS Code Remote SSH 插件的使用。</p>
+<span id="more"></span>
+
+<h1 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h1><ul>
+<li>本机：Windows 10</li>
+<li>远程机器：本地虚拟机 CentOS 8，root 用户</li>
+</ul>
+<h1 id="本机-SSH-配置"><a href="#本机-SSH-配置" class="headerlink" title="本机 SSH 配置"></a>本机 SSH 配置</h1><p>使用 <code>ssh-keygen</code> 命令，会在 <code>C:\users\&lt;user&gt;\.ssh</code> 目录下创建<strong>本机</strong>的 RSA 公私钥：</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="built_in">PS</span> C:\Users\Elnino\.ssh&gt; <span class="built_in">dir</span></span><br><span class="line">    目录: C:\Users\Elnino\.ssh</span><br><span class="line">Mode                 LastWriteTime         Length Name</span><br><span class="line"><span class="literal">----</span>                 <span class="literal">-------------</span>         <span class="literal">------</span> <span class="literal">----</span></span><br><span class="line"><span class="literal">-a----</span>          <span class="number">2024</span>/<span class="number">1</span>/<span class="number">1</span>     <span class="number">12</span>:<span class="number">26</span>             <span class="number">91</span> config</span><br><span class="line"><span class="literal">-a----</span>         <span class="number">2023</span>/<span class="number">9</span>/<span class="number">30</span>     <span class="number">18</span>:<span class="number">03</span>           <span class="number">2610</span> id_rsa</span><br><span class="line"><span class="literal">-a----</span>         <span class="number">2023</span>/<span class="number">9</span>/<span class="number">30</span>     <span class="number">18</span>:<span class="number">03</span>            <span class="number">576</span> id_rsa.pub</span><br><span class="line"><span class="literal">-a----</span>        <span class="number">2023</span>/<span class="number">12</span>/<span class="number">18</span>     <span class="number">20</span>:<span class="number">42</span>           <span class="number">1398</span> known_hosts</span><br><span class="line"><span class="literal">-a----</span>         <span class="number">2023</span>/<span class="number">9</span>/<span class="number">30</span>     <span class="number">18</span>:<span class="number">03</span>             <span class="number">92</span> known_hosts.old</span><br></pre></td></tr></table></figure>
+
+<p><code>id_rsa</code> 是私钥，<code>id_rsa.pub</code> 是公钥</p>
+<h1 id="远程主机-SSH-配置"><a href="#远程主机-SSH-配置" class="headerlink" title="远程主机 SSH 配置"></a>远程主机 SSH 配置</h1><p>将<strong>本机</strong>的 <code>id_rsa.pub</code> 上传到 Linux 远程主机的 <code>~/ssh</code> 目录，并改名为 <code>authorized_keys</code></p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">[root@CentOS100 .ssh]<span class="comment"># ll</span></span><br><span class="line">total 16</span><br><span class="line">-rw-r--r--. 1 root root 576 Jan  1 11:50 authorized_keys</span><br><span class="line">-rw-------. 1 root root 411 Jul  1  2023 id_ed25519</span><br><span class="line">-rw-r--r--. 1 root root  96 Jul  1  2023 id_ed25519.pub</span><br><span class="line">-rw-r--r--. 1 root root 880 Dec 18 21:07 known_hosts</span><br></pre></td></tr></table></figure>
+
+<h1 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h1><p>以上步骤，就是 SSH 密钥登录的全部配置。</p>
+<p>打开本机的PowerShell，使用 <code>ssh &lt;user&gt;@&lt;ip&gt;</code> 测试连接。应该能够直接登录，不需要输入密码。</p>
+<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="built_in">PS</span> C:\Users\Elnino&gt; ssh root@CentOS100</span><br><span class="line">Activate the web console with: systemctl enable <span class="literal">--now</span> cockpit.socket</span><br><span class="line"></span><br><span class="line">Last login: Mon Jan  <span class="number">1</span> <span class="number">12</span>:<span class="number">26</span>:<span class="number">15</span> <span class="number">2024</span> from &lt;ip&gt;</span><br><span class="line">[<span class="type">root</span>@<span class="type">CentOS100</span> ~]<span class="comment"># pwd</span></span><br><span class="line">/root</span><br></pre></td></tr></table></figure>
+
+<h1 id="VS-Code-配置"><a href="#VS-Code-配置" class="headerlink" title="VS Code 配置"></a>VS Code 配置</h1><ol>
+<li><p>安装 <a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh">Remote - SSH</a> 插件：</p>
+<p> <img src="/MarkDownImages/image-20240101130622357.png" alt="image-20240101130622357"></p>
+</li>
+<li><p>依次点击这3个按钮，进入配置文件：</p>
+<p> <img src="/MarkDownImages/image-20240101130733756.png" alt="image-20240101130733756"></p>
+</li>
+<li><p>填写配置文件（这个文件其实是主机的 SSH 配置）：</p>
+<p> <img src="/MarkDownImages/image-20240101130804525.png" alt="image-20240101130804525"></p>
+<ul>
+<li><code>Host</code>：识别这个远程连接的 Id，可以随便起个名字；</li>
+<li><code>HostName</code>：远程主机的域名或 IP；</li>
+<li><code>User</code>：登录远程主机的用户；</li>
+<li><code>IdentityFile</code>：对应 <code>authorized_keys</code> 的<strong>私钥</strong>的存放位置；</li>
+</ul>
+</li>
+</ol>
+<p>关于配置文件的几点说明：</p>
+<ul>
+<li>如果没有在远程主机配置 <code>authorized_keys</code> ，那么 <code>IdentityFile</code> 属性不会起作用。登录时会要求输入密码；</li>
+<li>在这个案例中，<code>IdentityFile</code> 其实没必要配置。因为 <code>authorized_keys</code> 就是本机的公钥，而 SSH 默认使用本机的私钥尝试连接；</li>
+<li>一般情况下，<code>authorized_keys</code> 不会是本机的公钥，此时 <code>IdentityFile</code> 必须要配置，否则就要输入密码；</li>
+</ul>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ul>
+<li><a href="https://medium.com/@sean4deepak/using-ssh-key-authentication-in-visual-studio-codes-remote-ssh-extension-4e5b922448e7">Using SSH Key Authentication in Visual Studio Code’ s Remote SSH Extension</a></li>
+<li><a href="https://adamtheautomator.com/add-ssh-key-to-vs-code/">Add SSH Key to VS Code and Connect to a Host</a></li>
+<li><a href="https://stackoverflow.com/questions/48328446/id-rsa-pub-file-ssh-error-invalid-format">id_rsa.pub file SSH Error: invalid format</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>softwares</category>
+        <category>VS Code</category>
+      </categories>
+      <tags>
+        <tag>settings</tag>
+        <tag>VS Code</tag>
+        <tag>SSH</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>力扣 370 周赛总结</title>
+    <url>/2023/11/05/leetcode-370-weekly-contest-summary/</url>
+    <content><![CDATA[<h1 id="概要"><a href="#概要" class="headerlink" title="概要"></a>概要</h1><blockquote>
+<p><a href="https://leetcode.cn/contest/weekly-contest-370/">力扣第 370 场周赛</a></p>
+</blockquote>
+<blockquote>
+<p>本文只是周赛的总结，我不准备详细地讨论每一道题，有些题只会给出大致思路。重点还是在于自己的总结、反思和提高。</p>
+</blockquote>
+<p>23 分钟 AC 前三题，使得排名在三百左右 —— 典型的比手速策略。做题情况简要描述：</p>
+<ul>
+<li>第一题：送分题，但是有点卡住了，花了 5 分钟😒；</li>
+<li>第二题：背景和第一题一样，同样是送分题，做得反而更快😋；</li>
+<li>第三题：一道符合难度的中等题，需要稍微想一下，15 分钟做出来，不错😋；</li>
+<li>第四题：没做出来。如果数据规模小的话是一道简单 dp，但没有优化思路 😒；</li>
+</ul>
+<span id="more"></span>
+
+
+
+<h1 id="一、找到冠军-I"><a href="#一、找到冠军-I" class="headerlink" title="一、找到冠军 I"></a>一、<a href="https://leetcode.cn/problems/find-champion-i/">找到冠军 I</a></h1><p><img src="/MarkDownImages/image-20231105132950645.png" alt="image-20231105132950645"></p>
+<p><img src="/MarkDownImages/image-20231105132958733.png" alt="image-20231105132958733"></p>
+<p>“如果不存在某支强于 <code>a</code> 队的队伍，则认为 <code>a</code> 队将会是 <strong>冠军</strong> ”，因此使用 <code>count[i]</code> 表示比 <code>i</code> 强的队伍数量。使得 $count[i] &#x3D; 0$ 的 $i$ 即为答案</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Solution</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">findChampion</span><span class="params">(<span class="type">int</span>[][] grid)</span> &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">n</span> <span class="operator">=</span> grid.length;</span><br><span class="line">        <span class="type">int</span>[] count = <span class="keyword">new</span> <span class="title class_">int</span>[n];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> <span class="number">0</span>; j &lt; n; j++) &#123;</span><br><span class="line">                <span class="keyword">if</span> (i == j) <span class="keyword">continue</span>;</span><br><span class="line">                <span class="keyword">if</span> (grid[i][j] == <span class="number">1</span>) count[j]++;</span><br><span class="line">                <span class="keyword">else</span> count[i]++;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (count[i] == <span class="number">0</span>) <span class="keyword">return</span> i;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="二、找到冠军-II"><a href="#二、找到冠军-II" class="headerlink" title="二、找到冠军 II"></a>二、<a href="https://leetcode.cn/problems/find-champion-ii/">找到冠军 II</a></h1><p><img src="/MarkDownImages/image-20231105133352267.png" alt="image-20231105133352267"></p>
+<p><img src="/MarkDownImages/image-20231105133528772.png" alt="image-20231105133528772"></p>
+<p><img src="/MarkDownImages/image-20231105133540889.png" alt="image-20231105133540889"></p>
+<p>用有向边表示谁比谁强，明显比第一题好理解。边 $(a,b)$ 表示 $a$ 比 $b$ 强，因此那些最强的队伍的入度为 $0$。统计入度即可。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.Arrays;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Solution</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">findChampion</span><span class="params">(<span class="type">int</span> n, <span class="type">int</span>[][] edges)</span> &#123;</span><br><span class="line">        <span class="type">int</span>[] inDeg = <span class="keyword">new</span> <span class="title class_">int</span>[n];</span><br><span class="line">        <span class="comment">// 统计入度</span></span><br><span class="line">        Arrays.stream(edges).forEach(e -&gt; inDeg[e[<span class="number">1</span>]]++);</span><br><span class="line"></span><br><span class="line">        <span class="type">long</span> <span class="variable">count</span> <span class="operator">=</span> Arrays.stream(inDeg).filter(i -&gt; i == <span class="number">0</span>).count();</span><br><span class="line">        <span class="comment">// 非唯一</span></span><br><span class="line">        <span class="keyword">if</span> (count != <span class="number">1</span>) <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (inDeg[i] == <span class="number">0</span>) <span class="keyword">return</span> i;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">Error</span>();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="三、在树上执行操作以后得到的最大分数"><a href="#三、在树上执行操作以后得到的最大分数" class="headerlink" title="三、在树上执行操作以后得到的最大分数"></a>三、<a href="https://leetcode.cn/problems/maximum-score-after-applying-operations-on-a-tree/">在树上执行操作以后得到的最大分数</a></h1><p><img src="/MarkDownImages/image-20231105134014234.png" alt="image-20231105134014234"></p>
+<p><img src="/MarkDownImages/image-20231105134359269.png" alt="image-20231105134359269"></p>
+<p><img src="/MarkDownImages/image-20231105134415086.png" alt="image-20231105134415086"></p>
+<p>$\forall i, values[i] \ge 1$，并且“从根节点出发，到任意叶子节点经过的路径上的节点值之和都不等于 0”。因此，我们在执行操作时，<strong>每条从根节点到叶节点的路径上，都要留一个节点不去操作</strong>。（多条路径可能共用一个不操作的节点）</p>
+<p>令图中所有节点的集合是 $V$，我们<strong>不操作</strong>的节点的集合为 $U$，则“对这棵树执行任意次操作，但要求执行完所有操作以后树是 <strong>健康的</strong> ”，得到的分数为 $\sum\limits_{v\in V} v - \sum\limits_{u\in U}u$。$\sum\limits_{v\in V} v $ 即为 <code>sum(values)</code>，因此，为了使分数最大，我们不操作的节点之和 $\sum\limits_{u\in U}u$ 应该尽可能地小。那么，应该不操作哪些节点呢？</p>
+<p>对于树的任意一棵子树，比如下图：</p>
+<p><img src="/MarkDownImages/image-20231105135510005.png" alt="image-20231105135510005"></p>
+<p>假设我们不操作根节点 0，那么剩余的节点都可以操作；假设我们操作了根节点 0，那么剩余的节点中存在不能操作的节点。这里的剩余节点可能是叶节点，也可能是多棵子树，无论是什么，都不影响该结论。</p>
+<p>那么什么时候操作根节点？定义一棵以 $u$ 为根节点的<strong>健康的</strong>子树中<strong>不操作</strong>的节点的<strong>最小和</strong>为 $res(u)$，则 $\forall x, x$ 是 $u$ 的子节点, $res(u) &#x3D; \min\set{values[u], \sum\limits_x res(x)}$</p>
+<p>该递归式的含义是：</p>
+<ul>
+<li>要么不操作根节点 $u$，此时这棵树是健康的，剩余的所有子节点都可以操作；</li>
+<li>要么操作根节点 $u$，但是 $u$ 的所有子树都需要保证自己是健康的；</li>
+<li>根据定义，我们要得到<strong>最小和</strong>，因此取两者情况的较小值；</li>
+</ul>
+<p>对于上述例子，$res(1) &#x3D; 2,res(2) &#x3D; 2,res(3) &#x3D; 5$</p>
+<p>$values[0] &#x3D; 5 &lt; \sum\limits_{x\in\set{1,2,3}}res(x) &#x3D; 9$，因此不操作根节点 $0$，而操作其所有子树中的节点。</p>
+<p>有了 $res(u)$ 的递推式，上述 $\sum\limits_{u\in U}u$ 的值就是 $res(0)$，因此，最大分数是 <code>sum(values) - res(0)</code></p>
+<p>代码：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.Arrays;</span><br><span class="line"><span class="keyword">import</span> java.util.stream.IntStream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Solution</span> &#123;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">Node</span> &#123;</span><br><span class="line">        <span class="keyword">public</span> <span class="title function_">Node</span><span class="params">(<span class="type">int</span> val, <span class="type">int</span> index)</span> &#123;</span><br><span class="line">            <span class="built_in">this</span>.val = val;</span><br><span class="line">            <span class="built_in">this</span>.index = index;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ArrayList&lt;Node&gt; children = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;();</span><br><span class="line">        <span class="type">int</span> val;</span><br><span class="line">        <span class="type">int</span> index;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">long</span> <span class="title function_">maximumScoreAfterOperations</span><span class="params">(<span class="type">int</span>[][] edges, <span class="type">int</span>[] values)</span> &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">n</span> <span class="operator">=</span> values.length;</span><br><span class="line">        <span class="comment">// 建树，实际上是建图</span></span><br><span class="line">        Node[] nodes = IntStream.range(<span class="number">0</span>, n).mapToObj(i -&gt; <span class="keyword">new</span> <span class="title class_">Node</span>(values[i], i)).toArray(Node[]::<span class="keyword">new</span>);</span><br><span class="line">        Arrays.stream(edges).forEach(e -&gt; &#123;</span><br><span class="line">            nodes[e[<span class="number">0</span>]].children.add(nodes[e[<span class="number">1</span>]]);</span><br><span class="line">            nodes[e[<span class="number">1</span>]].children.add(nodes[e[<span class="number">0</span>]]);</span><br><span class="line">        &#125;);</span><br><span class="line"></span><br><span class="line">        <span class="type">boolean</span>[] visited = <span class="keyword">new</span> <span class="title class_">boolean</span>[n];</span><br><span class="line">        visited[<span class="number">0</span>] = <span class="literal">true</span>;</span><br><span class="line">        <span class="comment">// values[i] &lt;= 10^9，注意 mapToLong</span></span><br><span class="line">        <span class="type">long</span> <span class="variable">sum</span> <span class="operator">=</span> Arrays.stream(values).mapToLong(i -&gt; i).sum();</span><br><span class="line">        <span class="type">long</span> <span class="variable">min</span> <span class="operator">=</span> dfs(nodes[<span class="number">0</span>], visited);</span><br><span class="line">        <span class="keyword">return</span> sum - min;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> root 根节点</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> res(root)</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="type">long</span> <span class="title function_">dfs</span><span class="params">(Node root, <span class="type">boolean</span>[] visited)</span> &#123;</span><br><span class="line">        <span class="comment">// count # visited neighbors</span></span><br><span class="line">        <span class="type">int</span> <span class="variable">count</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">        <span class="comment">// min = sum(res(children))</span></span><br><span class="line">        <span class="type">long</span> <span class="variable">min</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (Node child : root.children) &#123;</span><br><span class="line">            <span class="keyword">if</span> (visited[child.index]) &#123;</span><br><span class="line">                count++;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            visited[child.index] = <span class="literal">true</span>;</span><br><span class="line">            min += dfs(child, visited);</span><br><span class="line">            visited[child.index] = <span class="literal">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 此时该节点为叶节点，直接返回它的 val</span></span><br><span class="line">        <span class="keyword">if</span> (count == root.children.size()) &#123;</span><br><span class="line">            <span class="keyword">return</span> root.val;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> Math.min(root.val, min);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="四、平衡子序列的最大和"><a href="#四、平衡子序列的最大和" class="headerlink" title="四、平衡子序列的最大和"></a>四、<a href="https://leetcode.cn/problems/maximum-balanced-subsequence-sum/">平衡子序列的最大和</a></h1><p><img src="/MarkDownImages/image-20231105162645031.png" alt="image-20231105162645031"></p>
+<p><img src="/MarkDownImages/image-20231105162654150.png" alt="image-20231105162654150"></p>
+<p>重新读题：平衡子序列中连续的两个元素 <code>nums[i]</code> 和 <code>nums[j]</code> 需要满足 $i &lt; j$ 且 $nums[j] - nums[i] \ge j -i$</p>
+<p>对上述不等式移项，得到 $nums[j] - j \ge nums[i] - i$ —— 左右两边的各项都只关于其下标，而与其他条件无关</p>
+<p>因此，这道题类似于最长递增子序列，用 DP 解决：</p>
+<p>DP 定义：<code>dp[j]</code> 表示以 <code>nums[j]</code> <strong>结尾</strong>的 <strong>平衡</strong> 子序列里面的 <strong>最大元素和</strong> </p>
+<p>递推式：$dp[j] &#x3D; nums[j] + \max\set{dp[i] | (i &lt; j) ∧ (nums[j] - j \ge nums[i] - i)}$</p>
+<p>代码：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Solution</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="type">long</span> <span class="title function_">maxBalancedSubsequenceSum</span><span class="params">(<span class="type">int</span>[] nums)</span> &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">n</span> <span class="operator">=</span> nums.length;</span><br><span class="line">        <span class="type">long</span> <span class="variable">ans</span> <span class="operator">=</span> Long.MIN_VALUE;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// dp[i]： 以 nums[i] 结尾的子序列的最大元素和</span></span><br><span class="line">        <span class="type">long</span>[] dp = <span class="keyword">new</span> <span class="title class_">long</span>[n];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> <span class="number">0</span>; j &lt; n; j++) &#123;</span><br><span class="line">            dp[j] = nums[j];</span><br><span class="line">            <span class="type">long</span> <span class="variable">max</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; j; i++) &#123;</span><br><span class="line">                <span class="keyword">if</span> (nums[j] - j &gt;= nums[i] - i) &#123;</span><br><span class="line">                    max = Math.max(max, dp[i]);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            dp[j] += max;</span><br><span class="line"></span><br><span class="line">            ans = Math.max(ans, dp[j]);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> ans;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>问题在于，这么做显然是 $O(n^2)$ 的时间复杂度，比赛时我也没想出如何优化。</p>
+<p>我准备在下一篇博客中详细描述如何做出这道题（基于大佬的题解），现在先让我去学习相关知识。</p>
+]]></content>
+      <categories>
+        <category>算法题</category>
+        <category>算法竞赛</category>
+      </categories>
+      <tags>
+        <tag>模拟</tag>
+        <tag>动态规划</tag>
+        <tag>树</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>pip &amp; conda 常用指令</title>
     <url>/2024/01/14/pip-conda-Common-Commands/</url>
     <content><![CDATA[<h1 id="pip"><a href="#pip" class="headerlink" title="pip"></a>pip</h1><ol>
@@ -1232,112 +1352,6 @@
         <tag>Python</tag>
         <tag>pip</tag>
         <tag>conda</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>力扣 370 周赛总结</title>
-    <url>/2023/11/05/leetcode-370-weekly-contest-summary/</url>
-    <content><![CDATA[<h1 id="概要"><a href="#概要" class="headerlink" title="概要"></a>概要</h1><blockquote>
-<p><a href="https://leetcode.cn/contest/weekly-contest-370/">力扣第 370 场周赛</a></p>
-</blockquote>
-<blockquote>
-<p>本文只是周赛的总结，我不准备详细地讨论每一道题，有些题只会给出大致思路。重点还是在于自己的总结、反思和提高。</p>
-</blockquote>
-<p>23 分钟 AC 前三题，使得排名在三百左右 —— 典型的比手速策略。做题情况简要描述：</p>
-<ul>
-<li>第一题：送分题，但是有点卡住了，花了 5 分钟😒；</li>
-<li>第二题：背景和第一题一样，同样是送分题，做得反而更快😋；</li>
-<li>第三题：一道符合难度的中等题，需要稍微想一下，15 分钟做出来，不错😋；</li>
-<li>第四题：没做出来。如果数据规模小的话是一道简单 dp，但没有优化思路 😒；</li>
-</ul>
-<span id="more"></span>
-
-
-
-<h1 id="一、找到冠军-I"><a href="#一、找到冠军-I" class="headerlink" title="一、找到冠军 I"></a>一、<a href="https://leetcode.cn/problems/find-champion-i/">找到冠军 I</a></h1><p><img src="/MarkDownImages/image-20231105132950645.png" alt="image-20231105132950645"></p>
-<p><img src="/MarkDownImages/image-20231105132958733.png" alt="image-20231105132958733"></p>
-<p>“如果不存在某支强于 <code>a</code> 队的队伍，则认为 <code>a</code> 队将会是 <strong>冠军</strong> ”，因此使用 <code>count[i]</code> 表示比 <code>i</code> 强的队伍数量。使得 $count[i] &#x3D; 0$ 的 $i$ 即为答案</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Solution</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">findChampion</span><span class="params">(<span class="type">int</span>[][] grid)</span> &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">n</span> <span class="operator">=</span> grid.length;</span><br><span class="line">        <span class="type">int</span>[] count = <span class="keyword">new</span> <span class="title class_">int</span>[n];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> <span class="number">0</span>; j &lt; n; j++) &#123;</span><br><span class="line">                <span class="keyword">if</span> (i == j) <span class="keyword">continue</span>;</span><br><span class="line">                <span class="keyword">if</span> (grid[i][j] == <span class="number">1</span>) count[j]++;</span><br><span class="line">                <span class="keyword">else</span> count[i]++;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (count[i] == <span class="number">0</span>) <span class="keyword">return</span> i;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h1 id="二、找到冠军-II"><a href="#二、找到冠军-II" class="headerlink" title="二、找到冠军 II"></a>二、<a href="https://leetcode.cn/problems/find-champion-ii/">找到冠军 II</a></h1><p><img src="/MarkDownImages/image-20231105133352267.png" alt="image-20231105133352267"></p>
-<p><img src="/MarkDownImages/image-20231105133528772.png" alt="image-20231105133528772"></p>
-<p><img src="/MarkDownImages/image-20231105133540889.png" alt="image-20231105133540889"></p>
-<p>用有向边表示谁比谁强，明显比第一题好理解。边 $(a,b)$ 表示 $a$ 比 $b$ 强，因此那些最强的队伍的入度为 $0$。统计入度即可。</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.Arrays;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Solution</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">findChampion</span><span class="params">(<span class="type">int</span> n, <span class="type">int</span>[][] edges)</span> &#123;</span><br><span class="line">        <span class="type">int</span>[] inDeg = <span class="keyword">new</span> <span class="title class_">int</span>[n];</span><br><span class="line">        <span class="comment">// 统计入度</span></span><br><span class="line">        Arrays.stream(edges).forEach(e -&gt; inDeg[e[<span class="number">1</span>]]++);</span><br><span class="line"></span><br><span class="line">        <span class="type">long</span> <span class="variable">count</span> <span class="operator">=</span> Arrays.stream(inDeg).filter(i -&gt; i == <span class="number">0</span>).count();</span><br><span class="line">        <span class="comment">// 非唯一</span></span><br><span class="line">        <span class="keyword">if</span> (count != <span class="number">1</span>) <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (inDeg[i] == <span class="number">0</span>) <span class="keyword">return</span> i;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">Error</span>();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h1 id="三、在树上执行操作以后得到的最大分数"><a href="#三、在树上执行操作以后得到的最大分数" class="headerlink" title="三、在树上执行操作以后得到的最大分数"></a>三、<a href="https://leetcode.cn/problems/maximum-score-after-applying-operations-on-a-tree/">在树上执行操作以后得到的最大分数</a></h1><p><img src="/MarkDownImages/image-20231105134014234.png" alt="image-20231105134014234"></p>
-<p><img src="/MarkDownImages/image-20231105134359269.png" alt="image-20231105134359269"></p>
-<p><img src="/MarkDownImages/image-20231105134415086.png" alt="image-20231105134415086"></p>
-<p>$\forall i, values[i] \ge 1$，并且“从根节点出发，到任意叶子节点经过的路径上的节点值之和都不等于 0”。因此，我们在执行操作时，<strong>每条从根节点到叶节点的路径上，都要留一个节点不去操作</strong>。（多条路径可能共用一个不操作的节点）</p>
-<p>令图中所有节点的集合是 $V$，我们<strong>不操作</strong>的节点的集合为 $U$，则“对这棵树执行任意次操作，但要求执行完所有操作以后树是 <strong>健康的</strong> ”，得到的分数为 $\sum\limits_{v\in V} v - \sum\limits_{u\in U}u$。$\sum\limits_{v\in V} v $ 即为 <code>sum(values)</code>，因此，为了使分数最大，我们不操作的节点之和 $\sum\limits_{u\in U}u$ 应该尽可能地小。那么，应该不操作哪些节点呢？</p>
-<p>对于树的任意一棵子树，比如下图：</p>
-<p><img src="/MarkDownImages/image-20231105135510005.png" alt="image-20231105135510005"></p>
-<p>假设我们不操作根节点 0，那么剩余的节点都可以操作；假设我们操作了根节点 0，那么剩余的节点中存在不能操作的节点。这里的剩余节点可能是叶节点，也可能是多棵子树，无论是什么，都不影响该结论。</p>
-<p>那么什么时候操作根节点？定义一棵以 $u$ 为根节点的<strong>健康的</strong>子树中<strong>不操作</strong>的节点的<strong>最小和</strong>为 $res(u)$，则 $\forall x, x$ 是 $u$ 的子节点, $res(u) &#x3D; \min\set{values[u], \sum\limits_x res(x)}$</p>
-<p>该递归式的含义是：</p>
-<ul>
-<li>要么不操作根节点 $u$，此时这棵树是健康的，剩余的所有子节点都可以操作；</li>
-<li>要么操作根节点 $u$，但是 $u$ 的所有子树都需要保证自己是健康的；</li>
-<li>根据定义，我们要得到<strong>最小和</strong>，因此取两者情况的较小值；</li>
-</ul>
-<p>对于上述例子，$res(1) &#x3D; 2,res(2) &#x3D; 2,res(3) &#x3D; 5$</p>
-<p>$values[0] &#x3D; 5 &lt; \sum\limits_{x\in\set{1,2,3}}res(x) &#x3D; 9$，因此不操作根节点 $0$，而操作其所有子树中的节点。</p>
-<p>有了 $res(u)$ 的递推式，上述 $\sum\limits_{u\in U}u$ 的值就是 $res(0)$，因此，最大分数是 <code>sum(values) - res(0)</code></p>
-<p>代码：</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.Arrays;</span><br><span class="line"><span class="keyword">import</span> java.util.stream.IntStream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Solution</span> &#123;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">Node</span> &#123;</span><br><span class="line">        <span class="keyword">public</span> <span class="title function_">Node</span><span class="params">(<span class="type">int</span> val, <span class="type">int</span> index)</span> &#123;</span><br><span class="line">            <span class="built_in">this</span>.val = val;</span><br><span class="line">            <span class="built_in">this</span>.index = index;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ArrayList&lt;Node&gt; children = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;();</span><br><span class="line">        <span class="type">int</span> val;</span><br><span class="line">        <span class="type">int</span> index;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">long</span> <span class="title function_">maximumScoreAfterOperations</span><span class="params">(<span class="type">int</span>[][] edges, <span class="type">int</span>[] values)</span> &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">n</span> <span class="operator">=</span> values.length;</span><br><span class="line">        <span class="comment">// 建树，实际上是建图</span></span><br><span class="line">        Node[] nodes = IntStream.range(<span class="number">0</span>, n).mapToObj(i -&gt; <span class="keyword">new</span> <span class="title class_">Node</span>(values[i], i)).toArray(Node[]::<span class="keyword">new</span>);</span><br><span class="line">        Arrays.stream(edges).forEach(e -&gt; &#123;</span><br><span class="line">            nodes[e[<span class="number">0</span>]].children.add(nodes[e[<span class="number">1</span>]]);</span><br><span class="line">            nodes[e[<span class="number">1</span>]].children.add(nodes[e[<span class="number">0</span>]]);</span><br><span class="line">        &#125;);</span><br><span class="line"></span><br><span class="line">        <span class="type">boolean</span>[] visited = <span class="keyword">new</span> <span class="title class_">boolean</span>[n];</span><br><span class="line">        visited[<span class="number">0</span>] = <span class="literal">true</span>;</span><br><span class="line">        <span class="comment">// values[i] &lt;= 10^9，注意 mapToLong</span></span><br><span class="line">        <span class="type">long</span> <span class="variable">sum</span> <span class="operator">=</span> Arrays.stream(values).mapToLong(i -&gt; i).sum();</span><br><span class="line">        <span class="type">long</span> <span class="variable">min</span> <span class="operator">=</span> dfs(nodes[<span class="number">0</span>], visited);</span><br><span class="line">        <span class="keyword">return</span> sum - min;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> root 根节点</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> res(root)</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="type">long</span> <span class="title function_">dfs</span><span class="params">(Node root, <span class="type">boolean</span>[] visited)</span> &#123;</span><br><span class="line">        <span class="comment">// count # visited neighbors</span></span><br><span class="line">        <span class="type">int</span> <span class="variable">count</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">        <span class="comment">// min = sum(res(children))</span></span><br><span class="line">        <span class="type">long</span> <span class="variable">min</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (Node child : root.children) &#123;</span><br><span class="line">            <span class="keyword">if</span> (visited[child.index]) &#123;</span><br><span class="line">                count++;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            visited[child.index] = <span class="literal">true</span>;</span><br><span class="line">            min += dfs(child, visited);</span><br><span class="line">            visited[child.index] = <span class="literal">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 此时该节点为叶节点，直接返回它的 val</span></span><br><span class="line">        <span class="keyword">if</span> (count == root.children.size()) &#123;</span><br><span class="line">            <span class="keyword">return</span> root.val;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> Math.min(root.val, min);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h1 id="四、平衡子序列的最大和"><a href="#四、平衡子序列的最大和" class="headerlink" title="四、平衡子序列的最大和"></a>四、<a href="https://leetcode.cn/problems/maximum-balanced-subsequence-sum/">平衡子序列的最大和</a></h1><p><img src="/MarkDownImages/image-20231105162645031.png" alt="image-20231105162645031"></p>
-<p><img src="/MarkDownImages/image-20231105162654150.png" alt="image-20231105162654150"></p>
-<p>重新读题：平衡子序列中连续的两个元素 <code>nums[i]</code> 和 <code>nums[j]</code> 需要满足 $i &lt; j$ 且 $nums[j] - nums[i] \ge j -i$</p>
-<p>对上述不等式移项，得到 $nums[j] - j \ge nums[i] - i$ —— 左右两边的各项都只关于其下标，而与其他条件无关</p>
-<p>因此，这道题类似于最长递增子序列，用 DP 解决：</p>
-<p>DP 定义：<code>dp[j]</code> 表示以 <code>nums[j]</code> <strong>结尾</strong>的 <strong>平衡</strong> 子序列里面的 <strong>最大元素和</strong> </p>
-<p>递推式：$dp[j] &#x3D; nums[j] + \max\set{dp[i] | (i &lt; j) ∧ (nums[j] - j \ge nums[i] - i)}$</p>
-<p>代码：</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Solution</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="type">long</span> <span class="title function_">maxBalancedSubsequenceSum</span><span class="params">(<span class="type">int</span>[] nums)</span> &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">n</span> <span class="operator">=</span> nums.length;</span><br><span class="line">        <span class="type">long</span> <span class="variable">ans</span> <span class="operator">=</span> Long.MIN_VALUE;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// dp[i]： 以 nums[i] 结尾的子序列的最大元素和</span></span><br><span class="line">        <span class="type">long</span>[] dp = <span class="keyword">new</span> <span class="title class_">long</span>[n];</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> <span class="number">0</span>; j &lt; n; j++) &#123;</span><br><span class="line">            dp[j] = nums[j];</span><br><span class="line">            <span class="type">long</span> <span class="variable">max</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; j; i++) &#123;</span><br><span class="line">                <span class="keyword">if</span> (nums[j] - j &gt;= nums[i] - i) &#123;</span><br><span class="line">                    max = Math.max(max, dp[i]);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            dp[j] += max;</span><br><span class="line"></span><br><span class="line">            ans = Math.max(ans, dp[j]);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> ans;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>问题在于，这么做显然是 $O(n^2)$ 的时间复杂度，比赛时我也没想出如何优化。</p>
-<p>我准备在下一篇博客中详细描述如何做出这道题（基于大佬的题解），现在先让我去学习相关知识。</p>
-]]></content>
-      <categories>
-        <category>算法题</category>
-        <category>算法竞赛</category>
-      </categories>
-      <tags>
-        <tag>模拟</tag>
-        <tag>动态规划</tag>
-        <tag>树</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Python venv 使用</title>
-    <url>/2023/12/20/Python-venv-use/</url>
-    <content><![CDATA[<h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>Python 以其模块丰富而著称。但是，不同于 Java 开发中 Maven 使用 group Id、artifact Id 和 version 来唯一确定一个依赖。在实践中，绝大多数 Python 项目<strong>只</strong>通过模块名来区分模块。<code>pip install &lt;module&gt;</code>，一个模块就装好了。那么模块的版本呢？大部分项目的 requirements 都不会提及版本，造成后来者跑项目时不停地报错。</p>
-<p>因此，弱化版本号的概念无疑<strong>弊大于利</strong>。如何解决？使用 venv（虚拟环境）。</p>
-<p>如果直接使用 <code>pip install</code> ，那么所有 Python 项目共用这些模块，会产生版本会兼容。venv 将原始的 Python 环境拷贝一份。虚拟环境的运行只依赖于拷贝后的 Python，安装的模块也只会存在于该虚拟环境中。多个虚拟环境间相互隔离。</p>
-<h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><p>1️⃣创建  venv :</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">python <span class="literal">-m</span> venv C:\Users\Elnino\Desktop\test\venv</span><br></pre></td></tr></table></figure>
-
-<p><code>C:\Users\Elnino\Desktop\test\venv</code> 目录就是该虚拟环境</p>
-<span id="more"></span>
-
-<p>2️⃣启动：</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">venv\Scripts\activate</span><br></pre></td></tr></table></figure>
-
-<p>如果提示符前出现 <code>(venv)</code>，就说明启动成功，在里面可以随便玩了。</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">(venv) C:\Users\Elnino\Desktop\test&gt;pip list</span><br></pre></td></tr></table></figure>
-
-<p>3️⃣退出：</p>
-<figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">(venv) C:\Users\Elnino\Desktop\test&gt;deactivate</span><br><span class="line">C:\Users\Elnino\Desktop\test&gt;</span><br></pre></td></tr></table></figure>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://docs.python.org/3/library/venv.html">venv — Creation of virtual environments</a></p>
-]]></content>
-      <categories>
-        <category>tech</category>
-        <category>Python</category>
-      </categories>
-      <tags>
-        <tag>Python</tag>
-        <tag>venv</tag>
       </tags>
   </entry>
   <entry>

@@ -32,6 +32,7 @@
 <meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20240131172736021.png">
 <meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/image-20240131172831043.png">
 <meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/Screenshot_20240201_113254_Settings.png">
+<meta property="og:image" content="https://el-nino2020.github.io/MarkDownImages/IMG_2032.PNG">
 <meta property="article:published_time" content="2024-01-31T06:03:43.000Z">
 <meta property="article:modified_time" content="2024-01-31T06:03:43.000Z">
 <meta property="article:author" content="El nino">
@@ -296,14 +297,14 @@
         <i class="far fa-file-word"></i>
       </span>
       <span class="post-meta-item-text">本文字数：</span>
-      <span>1.8k</span>
+      <span>1.9k</span>
     </span>
     <span class="post-meta-item" title="阅读时长">
       <span class="post-meta-item-icon">
         <i class="far fa-clock"></i>
       </span>
       <span class="post-meta-item-text">阅读时长 &asymp;</span>
-      <span>6 分钟</span>
+      <span>7 分钟</span>
     </span>
 </div>
 
@@ -360,11 +361,22 @@
 <h3 id="Android"><a href="#Android" class="headerlink" title="Android"></a>Android</h3><p>不同系统安装证书的位置不一样，但基本的选项是一样的。这里以三星为例：</p>
 <p>要么选 『CA 证书』，要么选 『VPN 和 app 用户证书』。不要选『WLAN 证书』，这个没用。</p>
 <p><img src="/MarkDownImages/Screenshot_20240201_113254_Settings.png" alt="Screenshot_20240201_113254_Settings"></p>
-<h3 id="IOS"><a href="#IOS" class="headerlink" title="IOS"></a>IOS</h3><p>这个不会搞。。。</p>
-<blockquote>
-<p> 官方文档：<a target="_blank" rel="noopener" href="https://support.apple.com/en-hk/102390">https://support.apple.com/en-hk/102390</a></p>
-<p>Apple Configurator 要求 iPadOS 16，我不想升级，就不弄了；另外，管理员帐户好像没法注册？</p>
+<h3 id="IOS"><a href="#IOS" class="headerlink" title="IOS"></a>IOS</h3><blockquote>
+<p>这里以 iPadOS 15.7 为例</p>
 </blockquote>
+<ol>
+<li><p>打开 email，将 CA 证书作为附件发给自己；</p>
+</li>
+<li><p>用 Safari 浏览器登录邮箱，点击附件，选择“下载描述文件”（此时弹出提示，进入设置界面确认安装）；</p>
+</li>
+<li><p>进入设置，选择“安装描述文件”，输入锁屏密码；</p>
+</li>
+<li><p>设置 | 通用 | 关于本机 | 证书信任设置：开启完全信任</p>
+<p> <img src="/MarkDownImages/IMG_2032.PNG" alt="IMG_2032"></p>
+</li>
+</ol>
+<hr>
+<p>根据苹果的<a target="_blank" rel="noopener" href="https://support.apple.com/en-us/102028">新政策</a>，服务器证书不能超过 398 天，否则 SSL 连接出错（<code>NET::ERR_CERT_VALIDITY_TOO_LONG</code>）</p>
 <h2 id="创建服务器密钥"><a href="#创建服务器密钥" class="headerlink" title="创建服务器密钥"></a>创建服务器密钥</h2><figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl genrsa -out nginx_server.key 4096</span><br></pre></td></tr></table></figure>
 
 <h2 id="创建服务器-CSR（证书签名请求）"><a href="#创建服务器-CSR（证书签名请求）" class="headerlink" title="创建服务器 CSR（证书签名请求）"></a>创建服务器 CSR（证书签名请求）</h2><p>创建 <code>openssl.cnf</code>，内容如下：</p>
@@ -432,6 +444,9 @@
 <li><a target="_blank" rel="noopener" href="https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-nginx-in-ubuntu-16-04">How To Create a Self-Signed SSL Certificate for Nginx in Ubuntu 16.04</a></li>
 <li><a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/10175812/how-to-generate-a-self-signed-ssl-certificate-using-openssl">How to generate a self-signed SSL certificate using OpenSSL?</a></li>
 <li><a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/">Restricting Access with HTTP Basic Authentication</a></li>
+<li><a target="_blank" rel="noopener" href="https://support.hcltechsw.com/csm?id=kb_article&sysparm_article=KB0098768">在iOS设备上安装根证书(CA)</a></li>
+<li><a target="_blank" rel="noopener" href="https://discussions.apple.com/thread/253667401?sortBy=best">Enabling self-signed certificates in iOS 15</a></li>
+<li><a target="_blank" rel="noopener" href="https://support.apple.com/en-us/102028">Apple: About upcoming limits on trusted certificates</a></li>
 </ul>
 
     </div>
@@ -522,7 +537,7 @@
       <i class="fa fa-coffee"></i>
     </span>
       <span>站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">1:12</span>
+    <span title="站点阅读时长">1:13</span>
   </span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
